@@ -1,0 +1,324 @@
+{
+  "fixture_name": "reviewed-causal-forward-adjustments-v1",
+  "calendar_name": "XNYS",
+  "calendar_version": "4.13.2",
+  "policy": {
+    "version": "causal_forward_v1",
+    "decimal_precision": 28,
+    "rounding_mode": "ROUND_HALF_EVEN",
+    "source_fields": [
+      "raw_action.split_ratio",
+      "raw_action.dividend",
+      "raw_bar.adj_close"
+    ],
+    "equations": {
+      "cumulative_split_factor": "Fs_t = Fs_(t-1) * S_t",
+      "reference_price": "reference_t = C_(t-1) / S_t",
+      "dividend_factor": "G_t = reference_t / (reference_t - D_t)",
+      "cumulative_price_factor": "Fp_t = Fp_(t-1) * S_t * G_t",
+      "adjusted_ohlc": "adjusted = raw * Fp_t",
+      "adjusted_volume": "adjusted_volume = raw_volume / Fs_t"
+    }
+  },
+  "cases": {
+    "split_dividend_and_later_action": {
+      "request": {
+        "symbols": ["AAPL"],
+        "start": "2024-01-02",
+        "end": "2024-01-05"
+      },
+      "records": [
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "100",
+            "adj_close": "99.5",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "base"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "base"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-03",
+          "raw_bar": {
+            "open": "49",
+            "high": "50",
+            "low": "48",
+            "close": "49",
+            "adj_close": "48.5",
+            "volume": "200"
+          },
+          "raw_action": {
+            "dividend": "1",
+            "split_ratio": "2",
+            "provider_fields": {"event": "split-dividend"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "split-dividend"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-04",
+          "raw_bar": {
+            "open": "48",
+            "high": "49",
+            "low": "47",
+            "close": "48",
+            "adj_close": "47.5",
+            "volume": "300"
+          },
+          "raw_action": {
+            "dividend": "0.5",
+            "split_ratio": "1",
+            "provider_fields": {"event": "dividend"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "dividend"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-05",
+          "raw_bar": {
+            "open": "96",
+            "high": "98",
+            "low": "94",
+            "close": "96",
+            "adj_close": "95.5",
+            "volume": "400"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "0.5",
+            "provider_fields": {"event": "reverse-split"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "reverse-split"}
+        }
+      ],
+      "expected_candidates": [
+        {
+          "symbol": "AAPL",
+          "session": "2024-01-02",
+          "event_timestamp": "2024-01-02T21:00:00Z",
+          "raw_close": "100",
+          "raw_volume": "1000",
+          "dividend": "0",
+          "split_ratio": "1",
+          "source_fields": ["Dividends", "Stock Splits"],
+          "adjusted": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "100",
+            "volume": "1000"
+          },
+          "execution_adjusted_open": "100",
+          "sizing_adjusted_close": "100",
+          "cumulative_price_factor": "1",
+          "cumulative_split_factor": "1",
+          "policy_version": "causal_forward_v1",
+          "provider_record_checksum": "9a8276493e140667cdbd06005f16acd3f7e6260f52f85e935e00e75048f3e9c3",
+          "canonical_row_checksum": "0e3398857f7e5c6eef5c1fc1427c8a7ebf41183f38251244b6f4a50f2b4e099e"
+        },
+        {
+          "symbol": "AAPL",
+          "session": "2024-01-03",
+          "event_timestamp": "2024-01-03T21:00:00Z",
+          "raw_close": "49",
+          "raw_volume": "200",
+          "dividend": "1",
+          "split_ratio": "2",
+          "source_fields": ["Dividends", "Stock Splits"],
+          "adjusted": {
+            "open": "100",
+            "high": "102.0408163265306122448979592",
+            "low": "97.95918367346938775510204083",
+            "close": "100",
+            "volume": "100"
+          },
+          "execution_adjusted_open": "49",
+          "sizing_adjusted_close": "49",
+          "cumulative_price_factor": "2.040816326530612245",
+          "cumulative_split_factor": "2",
+          "policy_version": "causal_forward_v1",
+          "provider_record_checksum": "a174c198873f226f3ab8dbad7ca8714e5ea031e5e4d90042afcf735a2e4452b6",
+          "canonical_row_checksum": "d9cfdd10a9475fe27d3cef5503224c104e2f910d7e3c50df04eb168f0782aeca"
+        },
+        {
+          "symbol": "AAPL",
+          "session": "2024-01-04",
+          "event_timestamp": "2024-01-04T21:00:00Z",
+          "raw_close": "48",
+          "raw_volume": "300",
+          "dividend": "0.5",
+          "split_ratio": "1",
+          "source_fields": ["Dividends", "Stock Splits"],
+          "adjusted": {
+            "open": "98.96907216494845360824742267",
+            "high": "101.0309278350515463917525773",
+            "low": "96.90721649484536082474226803",
+            "close": "98.96907216494845360824742267",
+            "volume": "150"
+          },
+          "execution_adjusted_open": "48",
+          "sizing_adjusted_close": "48",
+          "cumulative_price_factor": "2.061855670103092784",
+          "cumulative_split_factor": "2",
+          "policy_version": "causal_forward_v1",
+          "provider_record_checksum": "faa0083d9e9b8ea4305fd882db31e9f23b87fd4cf741a5fe8f458267172fa5ae",
+          "canonical_row_checksum": "0a544d5aa3d1ae8b4d60f03c26bb34838c0ce38c2aa3fda2427cce1596e1578b"
+        },
+        {
+          "symbol": "AAPL",
+          "session": "2024-01-05",
+          "event_timestamp": "2024-01-05T21:00:00Z",
+          "raw_close": "96",
+          "raw_volume": "400",
+          "dividend": "0",
+          "split_ratio": "0.5",
+          "source_fields": ["Dividends", "Stock Splits"],
+          "adjusted": {
+            "open": "98.96907216494845360824742272",
+            "high": "101.0309278350515463917525774",
+            "low": "96.90721649484536082474226808",
+            "close": "98.96907216494845360824742272",
+            "volume": "400"
+          },
+          "execution_adjusted_open": "96",
+          "sizing_adjusted_close": "96",
+          "cumulative_price_factor": "1.030927835051546392",
+          "cumulative_split_factor": "1",
+          "policy_version": "causal_forward_v1",
+          "provider_record_checksum": "260eff31924871438744fc24d87168aeae4dc19612175ef9bcce65ae0f5eadcf",
+          "canonical_row_checksum": "ff07ed96de79183e2d7e7267385ae52dfb236bacaed58e2314c60b3b8b5ad820"
+        }
+      ],
+      "causal_prefix_sessions": ["2024-01-02", "2024-01-03", "2024-01-04"]
+    },
+    "invalid_split_ratio": {
+      "request": {
+        "symbols": ["AAPL"],
+        "start": "2024-01-02",
+        "end": "2024-01-02"
+      },
+      "records": [
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "100",
+            "adj_close": "99.5",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "0",
+            "provider_fields": {"event": "invalid-zero-split"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "invalid-zero-split"}
+        }
+      ],
+      "expected_candidates": [],
+      "expected_policy_quarantines": [
+        {
+          "symbol": "AAPL",
+          "session": "2024-01-02",
+          "reason_codes": ["normalization.policy"],
+          "policy_reason": "split_ratio_non_positive_or_non_finite",
+          "split_ratio": "0",
+          "dividend": "0"
+        }
+      ]
+    },
+    "invalid_dividend_equation": {
+      "request": {
+        "symbols": ["AAPL"],
+        "start": "2024-01-02",
+        "end": "2024-01-03"
+      },
+      "records": [
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "100",
+            "adj_close": "99.5",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "base"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "base"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-03",
+          "raw_bar": {
+            "open": "99",
+            "high": "100",
+            "low": "98",
+            "close": "99",
+            "adj_close": "98.5",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "100",
+            "split_ratio": "1",
+            "provider_fields": {"event": "invalid-dividend"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "invalid-dividend"}
+        }
+      ],
+      "expected_candidates": [
+        {
+          "symbol": "AAPL",
+          "session": "2024-01-02",
+          "event_timestamp": "2024-01-02T21:00:00Z",
+          "raw_close": "100",
+          "raw_volume": "1000",
+          "dividend": "0",
+          "split_ratio": "1",
+          "source_fields": ["Dividends", "Stock Splits"],
+          "adjusted": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "100",
+            "volume": "1000"
+          },
+          "execution_adjusted_open": "100",
+          "sizing_adjusted_close": "100",
+          "cumulative_price_factor": "1",
+          "cumulative_split_factor": "1",
+          "policy_version": "causal_forward_v1"
+        }
+      ],
+      "expected_policy_quarantines": [
+        {
+          "symbol": "AAPL",
+          "session": "2024-01-03",
+          "reason_codes": ["normalization.policy"],
+          "policy_reason": "dividend_reference_non_positive",
+          "split_ratio": "1",
+          "dividend": "100",
+          "prior_raw_close": "100",
+          "reference_price": "100"
+        }
+      ]
+    }
+  }
+}

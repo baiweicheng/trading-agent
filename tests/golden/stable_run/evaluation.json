@@ -1,0 +1,37 @@
+{
+  "fixture_version": "stable_evaluation_v1",
+  "input": {
+    "sessions": ["2024-01-31", "2024-02-01", "2024-02-02", "2024-02-29"],
+    "cash_balance": "98999.40",
+    "strategy_marks": ["100.01", "101", "99", "102"],
+    "strategy_returns": ["0", "0.000099000495002475012375062", "-0.0001999812017670338988135115", "0.000300031803371157342678324"],
+    "benchmark_adjusted_closes": ["100", "101", "99", "102"],
+    "filled_order": {"signal_session": "2024-01-29", "execution_session": "2024-01-31", "symbol": "AAPL", "requested_quantity": 10, "ordinal": 0, "decision_rank": 1, "status": "filled"},
+    "unfilled_order": {"signal_session": "2024-02-01", "execution_session": "2024-02-02", "symbol": "MSFT", "requested_quantity": 5, "ordinal": 1, "decision_rank": 2, "status": "unfilled", "unfilled_reason": "missing_adjusted_open"},
+    "fill": {"base_adjusted_open": "100", "fill_price": "100.01", "gross_notional": "1000.10", "commission": "0.50", "slippage_cost": "0.10"},
+    "decision": {"signal_session": "2024-01-29", "symbol": "AAPL", "endpoint_252_session": "2023-01-31", "endpoint_252_close": "100", "endpoint_21_session": "2024-01-02", "endpoint_21_close": "120", "momentum_score": "0.2", "eligible": true, "rank": 1, "target_weight": "1/1", "endpoint_252_checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "endpoint_21_checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+  },
+  "expected": {
+    "artifact_roles": ["benchmark_equity", "benchmark_returns", "chart_drawdown", "chart_equity_curve", "chart_monthly_returns", "decisions", "drawdown", "fills", "metrics", "monthly_returns", "orders", "portfolio", "positions", "strategy_equity", "strategy_returns", "transactions"],
+    "artifact_checksums": {
+      "benchmark_equity": "278f1196fcbb17913ee6fe7f85dc5a83613204a84693656f2e479646c92cdd84",
+      "benchmark_returns": "c00bbe17464ae2a6f18641a94d800d20b00f4c6e1ccfddc1d5e53850a4eb49f0",
+      "chart_drawdown": "9ace104bc3df47e9ce19126bdbc7d48670ff6bd5b3d9670fcc24cd676b4be024",
+      "chart_equity_curve": "85ef99621f529c2fc6adfcb9f270ba782a2be49cfbdf23454c5d01c40fd1169c",
+      "chart_monthly_returns": "a89d63ee527a3e8209be021b73df457948060c3812673c8fca7b41b86cf2feab",
+      "decisions": "f10ce43e60fe0cdb6ae9a2d93e5ce230f2fc8c030e65430701ccde8486c626d3",
+      "drawdown": "d67c2fe1d20ccc0e0e5c58184ee57c67aacb57f80746b296734e58d8e5897ecd",
+      "fills": "b19d367fc273a5bf16b475f3d4a5df2a55994f561429e0c2608bc12dea847832",
+      "metrics": "f568438a46ed8244ecda4092b98e824a4e1a59f305d13e5cdbd824f359e83110",
+      "monthly_returns": "336e0a6bf0c75e71902c1f2dcf768f29a112d950b0e667d3281dc2fca7c56be4",
+      "orders": "23bafe13fffc5ab7df199a758d0bb5ad96e2691ef2310696edb9e376812cc67b",
+      "portfolio": "8db7e68300010329f52d7319f04c27fce98bbbc8bc1fdd4d829b24066dbe9079",
+      "positions": "1064b3e5fb2ef43306a0c0864687e1f1212d0e07041cab79ca1bfbef74647a03",
+      "strategy_equity": "1edd2cbc964d3a75e0ac6e1cc9cb945ec38c0c3089f9de1b43287f6ad583515e",
+      "strategy_returns": "103970073bac5f8d4f6bf7982f1b29177a607b7820fd80164ac5daac08f03348",
+      "transactions": "ac7e573bf7fbeb210266a9b93b50e0a76bf98288261898e8816cb95a63d19789"
+    },
+    "evaluation_result": {"strategy_metrics": {"metrics": [{"name": "total_return", "null_reason": null, "value": "0.000199000995004975024875125"}, {"name": "compound_annual_growth_rate", "null_reason": null, "value": "0.012614718099249618168172189366436618323"}, {"name": "annualized_volatility", "null_reason": null, "value": "0.003303364269431981497729879915889326002920"}, {"name": "sharpe_ratio", "null_reason": null, "value": "3.796196260357327306577573836"}, {"name": "maximum_drawdown", "null_reason": null, "value": "-0.0001999812017670338988135115"}, {"name": "turnover", "null_reason": null, "value": "0.01000055747533171657154170928"}, {"name": "total_commissions", "null_reason": null, "value": "0.500000"}, {"name": "total_slippage", "null_reason": null, "value": "0.100000"}, {"name": "unfilled_orders", "null_reason": null, "value": 1}, {"name": "ending_cash_balance", "null_reason": null, "value": "98999.400000"}], "scope": "strategy"}, "benchmark_metrics": {"metrics": [{"name": "total_return", "null_reason": null, "value": "0.020000000000000000000000000"}, {"name": "compound_annual_growth_rate", "null_reason": null, "value": "2.481856120859681181499611125566866837674"}, {"name": "annualized_volatility", "null_reason": null, "value": "0.3311295506631757656081338748083121535564"}, {"name": "sharpe_ratio", "null_reason": null, "value": "3.900485939804991178777850055"}, {"name": "maximum_drawdown", "null_reason": null, "value": "-0.0198019801980198019801980198"}], "scope": "benchmark"}, "differences": {"metrics": [{"name": "total_return", "null_reason": null, "value": "-0.019800999004995024975124875"}, {"name": "compound_annual_growth_rate", "null_reason": null, "value": "-2.469241402760431563331438936"}, {"name": "annualized_volatility", "null_reason": null, "value": "-0.3278261863937437841104039949"}, {"name": "sharpe_ratio", "null_reason": null, "value": "-0.104289679447663872200276219"}, {"name": "maximum_drawdown", "null_reason": null, "value": "0.0196019989962527680813845083"}], "scope": "difference"}},
+    "monthly_returns": {"strategy": [{"month": "2024-01-31", "return_value": "0"}, {"month": "2024-02-29", "return_value": "0.000199000995004975024875125"}], "benchmark": [{"month": "2024-01-31", "return_value": "0"}, {"month": "2024-02-29", "return_value": "0.020000000000000000000000000"}]}
+  }
+}

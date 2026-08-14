@@ -1,37 +1,102 @@
-# Python
+# Python bytecode and interpreter artifacts
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.so
 .Python
 
-# Virtual environments
+# Virtual environments and environment managers
 .venv/
 venv/
 env/
+ENV/
+.conda/
+.direnv/
 
-# Build outputs
+# Python and tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.pyre/
+.tox/
+.nox/
+.pdm-cache/
+.uv/
+.cache/
+
+# Coverage and build output
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+pytest-report.xml
 build/
 dist/
 *.egg-info/
+.eggs/
+pip-wheel-metadata/
 
-# Local environment
+# Local secrets and credentials
 .env
 .env.*
 !.env.example
+.envrc
+*.local
+*.local.*
+*.secret
+*.secret.*
+*.secrets
+*.secrets.*
+*.credentials
+*.credentials.*
+*.token
+*.tokens
+*.password
+*.passwd
+config/secrets*.yaml
+config/secrets*.yml
+config/*.local.yaml
+config/*.local.yml
+*.pem
+*.key
+*.p12
+*.pfx
 
-# Local data and SQLite files
-data/
+# Local databases and experiment catalogs
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
 *.sqlite
 *.sqlite3
 *.db
+mlruns/
+mlartifacts/
 
-# Test/cache outputs
-.pytest_cache/
-.coverage
-htmlcov/
+# Generated local data, staging, CAS, artifacts, and derived bundles
+data/
+data/staging/
+data/objects/
+data/cas/
+data/artifacts/
+data/zipline-bundles/
+data/zipline/
+data/raw/
+data/normalized/
+data/quarantine/
+data/snapshots/
+data/runs/
+staging/
+.cas/
+artifacts/
+zipline-bundles/
 
-# OS/editor files
+# Reviewed golden fixtures are intentionally trackable.
+!tests/golden/
+!tests/golden/**
+
+# Operating-system and editor files
 .DS_Store
 .idea/
 .vscode/

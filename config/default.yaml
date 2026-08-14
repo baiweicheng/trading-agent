@@ -1,0 +1,52 @@
+# Phase 1 local defaults. Keep secrets in mapped environment variables or
+# the ignored config/secrets.local.yaml file; never place credentials here.
+paths:
+  data_root: data
+  artifact_root: data/artifacts
+  metadata_db: data/metadata.duckdb
+  mlflow_db: data/mlflow.db
+  local_secrets_file: config/secrets.local.yaml
+
+retry:
+  attempts: 3
+  initial_delay_seconds: 1
+  max_delay_seconds: 8
+  backoff_multiplier: 2.0
+
+data:
+  universe:
+    - AAPL
+    - JPM
+    - MSFT
+    - PG
+    - XOM
+  requested_range:
+    start: "2015-01-01"
+    end: "2024-12-31"
+  benchmark: SPY
+  provider: yfinance
+  batch_size: 5
+  staleness_sessions: 1
+  revision_overlap_sessions: 5
+  write_chunk_rows: 50000
+
+strategy:
+  identifier: monthly_momentum_v1
+  position_count: 5
+  long_lookback_sessions: 252
+  skip_recent_sessions: 21
+
+execution:
+  initial_equity_usd: "100000"
+  commission_bps: "5"
+  slippage_bps: "10"
+
+ui:
+  page_size: 100
+
+runtime:
+  deterministic_seed: 0
+
+secrets:
+  http_proxy: null
+  https_proxy: null

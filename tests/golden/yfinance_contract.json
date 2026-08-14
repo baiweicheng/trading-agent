@@ -1,0 +1,135 @@
+{
+  "single_symbol_actions": {
+    "symbols": ["AAPL"],
+    "start": "2024-01-02",
+    "end": "2024-01-03",
+    "index": ["2024-01-02", "2024-01-03"],
+    "columns": {
+      "Open": [100.0, 101.0],
+      "High": [102.0, 103.0],
+      "Low": [99.0, 100.0],
+      "Close": [101.0, 102.0],
+      "Adj Close": [100.5, 101.5],
+      "Volume": [1000.0, 1100.0],
+      "Dividends": [0.0, 0.25],
+      "Stock Splits": [0.0, 2.0],
+      "Capital Gains": [0.0, 0.1]
+    },
+    "attrs": {
+      "fixture_source": "reviewed-local-yfinance-contract"
+    },
+    "call_options": {
+      "tickers": "AAPL",
+      "start": "2024-01-02",
+      "end": "2024-01-04",
+      "interval": "1d",
+      "auto_adjust": false,
+      "back_adjust": false,
+      "actions": true,
+      "repair": false,
+      "keepna": true,
+      "prepost": false,
+      "rounding": false,
+      "threads": false,
+      "progress": false
+    },
+    "expected_status": "succeeded",
+    "expected_rows": [
+      {
+        "date": "2024-01-02",
+        "open": "100.0",
+        "high": "102.0",
+        "low": "99.0",
+        "close": "101.0",
+        "adj_close": "100.5",
+        "volume": "1000.0",
+        "dividend": "0.0",
+        "split_ratio": "0.0"
+      },
+      {
+        "date": "2024-01-03",
+        "open": "101.0",
+        "high": "103.0",
+        "low": "100.0",
+        "close": "102.0",
+        "adj_close": "101.5",
+        "volume": "1100.0",
+        "dividend": "0.25",
+        "split_ratio": "2.0"
+      }
+    ],
+    "expected_additional_field": {
+      "name": "Capital Gains",
+      "value": 0.1
+    }
+  },
+  "multi_symbol_partial": {
+    "symbols": ["AAPL", "MSFT"],
+    "start": "2024-01-02",
+    "end": "2024-01-03",
+    "index": ["2024-01-02", "2024-01-03"],
+    "columns": {
+      "AAPL": {
+        "Open": [100.0, 101.0],
+        "High": [102.0, 103.0],
+        "Low": [99.0, 100.0],
+        "Close": [101.0, 102.0],
+        "Adj Close": [100.5, 101.5],
+        "Volume": [1000.0, 1100.0],
+        "Dividends": [0.0, 0.0],
+        "Stock Splits": [0.0, 0.0]
+      },
+      "MSFT": {
+        "Open": [null, null],
+        "High": [null, null],
+        "Low": [null, null],
+        "Close": [null, null],
+        "Adj Close": [null, null],
+        "Volume": [null, null],
+        "Dividends": [null, null],
+        "Stock Splits": [null, null]
+      }
+    },
+    "expected_status": "partially_succeeded",
+    "expected_outcomes": [
+      {
+        "symbol": "AAPL",
+        "status": "success",
+        "failure_kind": null,
+        "failure_reason": null
+      },
+      {
+        "symbol": "MSFT",
+        "status": "failure",
+        "failure_kind": "terminal",
+        "failure_reason": "empty_response"
+      }
+    ]
+  },
+  "exception_mapping": [
+    {
+      "status_code": 408,
+      "failure_kind": "retryable",
+      "failure_reason": "server_error",
+      "error_category": "provider.retryable"
+    },
+    {
+      "status_code": 429,
+      "failure_kind": "retryable",
+      "failure_reason": "rate_limited",
+      "error_category": "provider.retryable"
+    },
+    {
+      "status_code": 503,
+      "failure_kind": "retryable",
+      "failure_reason": "server_error",
+      "error_category": "provider.retryable"
+    },
+    {
+      "status_code": 404,
+      "failure_kind": "terminal",
+      "failure_reason": "client_error",
+      "error_category": "provider.terminal"
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "fixture_name": "zipline-action-exactly-once-v1",
+  "calendar": {
+    "name": "XNYS",
+    "version": "4.13.2",
+    "schedule_checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "cases": [
+    {
+      "name": "forward_split_fractional_then_dividend",
+      "symbol": "AAA",
+      "sessions": [
+        {
+          "session": "2024-01-02",
+          "raw": {"open": "100", "high": "101", "low": "99", "close": "100", "volume": "1000"},
+          "action": {"split_ratio": "1", "dividend": "0"}
+        },
+        {
+          "session": "2024-01-03",
+          "raw": {"open": "66.66666666666666666666666667", "high": "67", "low": "66", "close": "66.66666666666666666666666667", "volume": "1500"},
+          "action": {"split_ratio": "1.5", "dividend": "0"}
+        },
+        {
+          "session": "2024-01-04",
+          "raw": {"open": "67", "high": "68", "low": "66", "close": "67", "volume": "1600"},
+          "action": {"split_ratio": "1", "dividend": "0.5"}
+        }
+      ],
+      "ledger": {
+        "starting_shares": "5",
+        "starting_cash": "0",
+        "split_session": "2024-01-03",
+        "pre_action_close": "100",
+        "expected_actual_shares": 7,
+        "expected_cash_in_lieu": "33.333333",
+        "expected_split_value_before": "500.000000",
+        "expected_split_value_after": "500.000000",
+        "dividend_session": "2024-01-04",
+        "expected_dividend_cash": "3.500000",
+        "expected_total_cash": "36.833333"
+      },
+      "expected_bundle_actions": {
+        "splits": [
+          {"sid": 0, "effective_date": "2024-01-03", "old_shares": "1", "new_shares": "1.5", "ratio": "0.6666666666666666666666666667"}
+        ],
+        "dividends": [
+          {"sid": 0, "ex_date": "2024-01-04", "amount": "0.5", "declared_date": null, "record_date": null, "pay_date": null}
+        ]
+      }
+    },
+    {
+      "name": "reverse_split_fractional_then_dividend",
+      "symbol": "BBB",
+      "sessions": [
+        {
+          "session": "2024-02-01",
+          "raw": {"open": "100", "high": "101", "low": "99", "close": "100", "volume": "1000"},
+          "action": {"split_ratio": "1", "dividend": "0"}
+        },
+        {
+          "session": "2024-02-02",
+          "raw": {"open": "200", "high": "202", "low": "198", "close": "200", "volume": "500"},
+          "action": {"split_ratio": "0.5", "dividend": "0"}
+        },
+        {
+          "session": "2024-02-05",
+          "raw": {"open": "205", "high": "207", "low": "203", "close": "205", "volume": "510"},
+          "action": {"split_ratio": "1", "dividend": "1.25"}
+        }
+      ],
+      "ledger": {
+        "starting_shares": "5",
+        "starting_cash": "0",
+        "split_session": "2024-02-02",
+        "pre_action_close": "100",
+        "expected_actual_shares": 2,
+        "expected_cash_in_lieu": "100.000000",
+        "expected_split_value_before": "500.000000",
+        "expected_split_value_after": "500.000000",
+        "dividend_session": "2024-02-05",
+        "expected_dividend_cash": "2.500000",
+        "expected_total_cash": "102.500000"
+      },
+      "expected_bundle_actions": {
+        "splits": [
+          {"sid": 0, "effective_date": "2024-02-02", "old_shares": "1", "new_shares": "0.5", "ratio": "2"}
+        ],
+        "dividends": [
+          {"sid": 0, "ex_date": "2024-02-05", "amount": "1.25", "declared_date": null, "record_date": null, "pay_date": null}
+        ]
+      }
+    }
+  ]
+}

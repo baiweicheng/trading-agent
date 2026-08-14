@@ -1,0 +1,467 @@
+{
+  "fixture_name": "reviewed-validation-quality-issues-v1",
+  "calendar_name": "XNYS",
+  "calendar_version": "4.13.2",
+  "cases": {
+    "invalid_ohlc": {
+      "request": {
+        "symbols": ["AAPL"],
+        "start": "2024-01-02",
+        "end": "2024-01-02"
+      },
+      "expected_sessions": {
+        "AAPL": ["2024-01-02"]
+      },
+      "staleness_threshold": 1,
+      "records": [
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "100",
+            "high": "98",
+            "low": "99",
+            "close": "97",
+            "adj_close": "97",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "invalid-ohlc"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "invalid-ohlc"}
+        }
+      ],
+      "expected": {
+        "accepted": [],
+        "quarantines": [
+          {
+            "source_kind": "daily_bar_candidate",
+            "symbol": "AAPL",
+            "session": "2024-01-02",
+            "reason_codes": ["high.envelope", "low.envelope"]
+          }
+        ],
+        "duplicate_counts": [],
+        "gaps": [
+          {
+            "symbol": "AAPL",
+            "expected_session": "2024-01-02",
+            "parent_retained": false,
+            "reason": "missing_accepted_bar"
+          }
+        ],
+        "per_symbol": [
+          {
+            "symbol": "AAPL",
+            "accepted_count": 0,
+            "quarantined_count": 1,
+            "duplicate_count": 0,
+            "gap_count": 1,
+            "stale": false,
+            "staleness_lag_sessions": 0,
+            "failed": false,
+            "retained_parent_coverage": false,
+            "covered_range": null,
+            "comparison_ready": true
+          }
+        ],
+        "quarantined_by_reason": [
+          {"reason": "high.envelope", "count": 1},
+          {"reason": "low.envelope", "count": 1}
+        ],
+        "report_checksum": "1b4b4aacb6373cdd5ca7145fdd783c7d00adccfc01da6741562d5cfaa42058d5"
+      }
+    },
+    "equivalent_and_conflicting_duplicates": {
+      "request": {
+        "symbols": ["AAPL"],
+        "start": "2024-01-02",
+        "end": "2024-01-03"
+      },
+      "expected_sessions": {
+        "AAPL": ["2024-01-02", "2024-01-03"]
+      },
+      "staleness_threshold": 1,
+      "records": [
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "101",
+            "adj_close": "101",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "equivalent"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "equivalent"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "101",
+            "adj_close": "101",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "equivalent"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "equivalent"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-03",
+          "raw_bar": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "101",
+            "adj_close": "101",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "conflict-a"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "conflict-a"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-03",
+          "raw_bar": {
+            "open": "100",
+            "high": "103",
+            "low": "99",
+            "close": "102",
+            "adj_close": "102",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "conflict-b"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "conflict-b"}
+        }
+      ],
+      "expected": {
+        "accepted": [
+          {
+            "symbol": "AAPL",
+            "session": "2024-01-02",
+            "adjusted_close": "101",
+            "canonical_row_checksum": "b143d1d63821b106505c1c74cac4db71909bd4774fb0816343a0a5ac0236019e"
+          }
+        ],
+        "quarantines": [
+          {
+            "source_kind": "daily_bar_candidate",
+            "symbol": "AAPL",
+            "session": "2024-01-03",
+            "reason_codes": ["duplicate.conflict"]
+          },
+          {
+            "source_kind": "daily_bar_candidate",
+            "symbol": "AAPL",
+            "session": "2024-01-03",
+            "reason_codes": ["duplicate.conflict"]
+          }
+        ],
+        "duplicate_counts": [
+          {"symbol": "AAPL", "session": "2024-01-02", "count": 1}
+        ],
+        "gaps": [
+          {
+            "symbol": "AAPL",
+            "expected_session": "2024-01-03",
+            "parent_retained": false,
+            "reason": "missing_accepted_bar"
+          }
+        ],
+        "per_symbol": [
+          {
+            "symbol": "AAPL",
+            "accepted_count": 1,
+            "quarantined_count": 2,
+            "duplicate_count": 1,
+            "gap_count": 1,
+            "stale": false,
+            "staleness_lag_sessions": 0,
+            "failed": false,
+            "retained_parent_coverage": false,
+            "covered_range": {"start": "2024-01-02", "end": "2024-01-02"},
+            "comparison_ready": true
+          }
+        ],
+        "quarantined_by_reason": [
+          {"reason": "duplicate.conflict", "count": 2}
+        ],
+        "report_checksum": "1377129fc91ca723dbf0ed50e2daf200f3ba5a3d33665ca1a726e0011c309217"
+      }
+    },
+    "non_session_gap_and_stale_symbols": {
+      "request": {
+        "symbols": ["AAPL", "MSFT", "SPY"],
+        "start": "2024-01-02",
+        "end": "2024-01-05"
+      },
+      "expected_sessions": {
+        "AAPL": ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"],
+        "MSFT": ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"],
+        "SPY": ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"]
+      },
+      "staleness_threshold": 0,
+      "comparison_range": {"start": "2024-01-02", "end": "2024-01-05"},
+      "records": [
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-01",
+          "raw_bar": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "100",
+            "adj_close": "100",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "non-session"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "non-session"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "100",
+            "high": "102",
+            "low": "99",
+            "close": "101",
+            "adj_close": "101",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "coverage"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "coverage-aapl-1"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-03",
+          "raw_bar": {
+            "open": "101",
+            "high": "103",
+            "low": "100",
+            "close": "102",
+            "adj_close": "102",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "coverage"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "coverage-aapl-2"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-04",
+          "raw_bar": {
+            "open": "102",
+            "high": "104",
+            "low": "101",
+            "close": "103",
+            "adj_close": "103",
+            "volume": "1000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "coverage"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "coverage-aapl-3"}
+        },
+        {
+          "symbol": "AAPL",
+          "provider_date": "2024-01-05",
+          "raw_bar": {
+            "open": null,
+            "high": null,
+            "low": null,
+            "close": null,
+            "adj_close": null,
+            "volume": null
+          },
+          "raw_action": {
+            "dividend": null,
+            "split_ratio": null,
+            "provider_fields": {"event": "absent-observation"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "absent-observation"}
+        },
+        {
+          "symbol": "MSFT",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "200",
+            "high": "202",
+            "low": "199",
+            "close": "201",
+            "adj_close": "201",
+            "volume": "2000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "stale"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "stale-msft"}
+        },
+        {
+          "symbol": "SPY",
+          "provider_date": "2024-01-02",
+          "raw_bar": {
+            "open": "300",
+            "high": "302",
+            "low": "299",
+            "close": "301",
+            "adj_close": "301",
+            "volume": "3000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "benchmark"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "spy-1"}
+        },
+        {
+          "symbol": "SPY",
+          "provider_date": "2024-01-03",
+          "raw_bar": {
+            "open": "301",
+            "high": "303",
+            "low": "300",
+            "close": "302",
+            "adj_close": "302",
+            "volume": "3000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "benchmark"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "spy-2"}
+        },
+        {
+          "symbol": "SPY",
+          "provider_date": "2024-01-04",
+          "raw_bar": {
+            "open": "302",
+            "high": "304",
+            "low": "301",
+            "close": "303",
+            "adj_close": "303",
+            "volume": "3000"
+          },
+          "raw_action": {
+            "dividend": "0",
+            "split_ratio": "1",
+            "provider_fields": {"event": "benchmark"}
+          },
+          "provider_fields": {"exchange": "NMS", "fixture_event": "spy-3"}
+        }
+      ],
+      "expected": {
+        "accepted": [
+          {"symbol": "AAPL", "session": "2024-01-02", "adjusted_close": "101", "canonical_row_checksum": "c20eca0ee3e76540275ebc5123f00d197aa03fc02307fdb2ea066e192d0cefb1"},
+          {"symbol": "AAPL", "session": "2024-01-03", "adjusted_close": "102", "canonical_row_checksum": "d3d1192a771bba895ab7e94fc2e63872660a8722b3544146d9283ce0cd1ad2f4"},
+          {"symbol": "AAPL", "session": "2024-01-04", "adjusted_close": "103", "canonical_row_checksum": "b4d36b8ec0ffb3ba60ed51a53014e09187c65a50b1723ee13a4a29e0442e5b9a"},
+          {"symbol": "MSFT", "session": "2024-01-02", "adjusted_close": "201", "canonical_row_checksum": "1c6c3cdffed921cf16afde43843ab182911bfade2fb318cc90ecc315961263db"},
+          {"symbol": "SPY", "session": "2024-01-02", "adjusted_close": "301", "canonical_row_checksum": "6edd7ff8b03df678d364a4c18402f7d4d6bcc5681df227811344638ea40813ee"},
+          {"symbol": "SPY", "session": "2024-01-03", "adjusted_close": "302", "canonical_row_checksum": "2e2bef3e6b41a92e51dce0e49ea9272bfbd20ecb381bc4d2d08edd7fb840750e"},
+          {"symbol": "SPY", "session": "2024-01-04", "adjusted_close": "303", "canonical_row_checksum": "0d39fa356eed97c4aca4a6c112b0cddf1ff35dd6829446cdeb5f73e1fa86c848"}
+        ],
+        "quarantines": [
+          {
+            "source_kind": "provider_record",
+            "symbol": null,
+            "session": null,
+            "reason_codes": ["session.non_xnys"]
+          }
+        ],
+        "duplicate_counts": [],
+        "gaps": [
+          {"symbol": "AAPL", "expected_session": "2024-01-05", "parent_retained": false, "reason": "missing_accepted_bar"},
+          {"symbol": "MSFT", "expected_session": "2024-01-03", "parent_retained": false, "reason": "missing_accepted_bar"},
+          {"symbol": "MSFT", "expected_session": "2024-01-04", "parent_retained": false, "reason": "missing_accepted_bar"},
+          {"symbol": "MSFT", "expected_session": "2024-01-05", "parent_retained": false, "reason": "missing_accepted_bar"},
+          {"symbol": "SPY", "expected_session": "2024-01-05", "parent_retained": false, "reason": "missing_accepted_bar"}
+        ],
+        "per_symbol": [
+          {
+            "symbol": "AAPL",
+            "accepted_count": 3,
+            "quarantined_count": 1,
+            "duplicate_count": 0,
+            "gap_count": 1,
+            "stale": true,
+            "staleness_lag_sessions": 1,
+            "failed": false,
+            "retained_parent_coverage": false,
+            "covered_range": {"start": "2024-01-02", "end": "2024-01-04"},
+            "comparison_ready": true
+          },
+          {
+            "symbol": "MSFT",
+            "accepted_count": 1,
+            "quarantined_count": 0,
+            "duplicate_count": 0,
+            "gap_count": 3,
+            "stale": true,
+            "staleness_lag_sessions": 3,
+            "failed": false,
+            "retained_parent_coverage": false,
+            "covered_range": {"start": "2024-01-02", "end": "2024-01-02"},
+            "comparison_ready": true
+          },
+          {
+            "symbol": "SPY",
+            "accepted_count": 3,
+            "quarantined_count": 0,
+            "duplicate_count": 0,
+            "gap_count": 1,
+            "stale": true,
+            "staleness_lag_sessions": 1,
+            "failed": false,
+            "retained_parent_coverage": false,
+            "covered_range": {"start": "2024-01-02", "end": "2024-01-04"},
+            "comparison_ready": false
+          }
+        ],
+        "quarantined_by_reason": [
+          {"reason": "session.non_xnys", "count": 1}
+        ],
+        "report_checksum": "85942a573a78d9860c9dc0664eef0ba320d41b2e4281fc5374e39b1a0993cd2a"
+      }
+    }
+  }
+}

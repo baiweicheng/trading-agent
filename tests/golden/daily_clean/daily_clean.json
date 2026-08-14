@@ -1,0 +1,181 @@
+{
+  "benchmark_symbol": "SPY",
+  "calendar": {
+    "name": "XNYS",
+    "version": "4.13.2"
+  },
+  "execution_session": "2025-01-02",
+  "expected": {
+    "decision_artifact_checksum": "729c3df9792c58d5729d89ee34fb3f1d30d21851819c2a764901f41a1a62dbb7",
+    "decisions": [
+      {
+        "eligible": true,
+        "endpoint_21_checksum": "a2439f75cc7000464cdbed8f769baf589799dd9b57a6bb35df929a377c6c1db0",
+        "endpoint_21_close": "120",
+        "endpoint_21_session": "2024-11-29",
+        "endpoint_252_checksum": "a941712468ac3b9d14639e01f3deb0438176e7b3200b5e12ae53a04f4ea8fbcb",
+        "endpoint_252_close": "100",
+        "endpoint_252_session": "2023-12-29",
+        "exclusion_reason": null,
+        "momentum_score": "0.2",
+        "rank": 1,
+        "signal_session": "2024-12-31",
+        "symbol": "AAPL",
+        "target_weight": "1/2"
+      },
+      {
+        "eligible": true,
+        "endpoint_21_checksum": "bb84c0a8a42602f927ae083225a7bf48ea53e0f041f9503e1d4fd6d30630a0b5",
+        "endpoint_21_close": "110",
+        "endpoint_21_session": "2024-11-29",
+        "endpoint_252_checksum": "442c4833ff38314c20a17ba53a311aa88594b62111d9a8446f02e2b18dda98ae",
+        "endpoint_252_close": "100",
+        "endpoint_252_session": "2023-12-29",
+        "exclusion_reason": null,
+        "momentum_score": "0.1",
+        "rank": 2,
+        "signal_session": "2024-12-31",
+        "symbol": "MSFT",
+        "target_weight": "1/2"
+      },
+      {
+        "eligible": true,
+        "endpoint_21_checksum": "63cfecf23b8a045e69e14ed29457154293017c18cb190e8ffe57687c06b225c2",
+        "endpoint_21_close": "110",
+        "endpoint_21_session": "2024-11-29",
+        "endpoint_252_checksum": "12cb5dd21bc238ea1c3f78de76aede4ef0862cd8e11af1d991cac7734847ec7e",
+        "endpoint_252_close": "100",
+        "endpoint_252_session": "2023-12-29",
+        "exclusion_reason": "not_selected",
+        "momentum_score": "0.1",
+        "rank": 3,
+        "signal_session": "2024-12-31",
+        "symbol": "PG",
+        "target_weight": "0/1"
+      }
+    ],
+    "delivery_artifact_checksum": "5ac9cd3c309b2570d96728d935bb3ffc988f6d0636862daa94dacb1421be39c8",
+    "endpoint_rows": [
+      {
+        "long_checksum": "a941712468ac3b9d14639e01f3deb0438176e7b3200b5e12ae53a04f4ea8fbcb",
+        "long_close": "100",
+        "long_session": "2023-12-29",
+        "short_checksum": "a2439f75cc7000464cdbed8f769baf589799dd9b57a6bb35df929a377c6c1db0",
+        "short_close": "120",
+        "short_session": "2024-11-29",
+        "symbol": "AAPL"
+      },
+      {
+        "long_checksum": "442c4833ff38314c20a17ba53a311aa88594b62111d9a8446f02e2b18dda98ae",
+        "long_close": "100",
+        "long_session": "2023-12-29",
+        "short_checksum": "bb84c0a8a42602f927ae083225a7bf48ea53e0f041f9503e1d4fd6d30630a0b5",
+        "short_close": "110",
+        "short_session": "2024-11-29",
+        "symbol": "MSFT"
+      },
+      {
+        "long_checksum": "12cb5dd21bc238ea1c3f78de76aede4ef0862cd8e11af1d991cac7734847ec7e",
+        "long_close": "100",
+        "long_session": "2023-12-29",
+        "short_checksum": "63cfecf23b8a045e69e14ed29457154293017c18cb190e8ffe57687c06b225c2",
+        "short_close": "110",
+        "short_session": "2024-11-29",
+        "symbol": "PG"
+      }
+    ],
+    "marked_equity": "2000",
+    "order_intent_artifact_checksum": "77d5672c92143878d4ee642b4ca0e572ebd598caa5c2db2e19855b5b47fbcc24",
+    "order_intents": [
+      {
+        "current_shares": 40,
+        "decision_rank": null,
+        "execution_session": "2025-01-02",
+        "order_id": "order_6a591f10e810e48bafc702a185da90f4b1f645d48ba0f61360d0b27b51c2584c",
+        "ordinal": 0,
+        "portfolio_equity": "2000",
+        "requested_quantity": -40,
+        "signal_session": "2024-12-31",
+        "sizing_price": "25",
+        "symbol": "PG",
+        "target_shares": 0
+      },
+      {
+        "current_shares": 0,
+        "decision_rank": 1,
+        "execution_session": "2025-01-02",
+        "order_id": "order_27bd1fa4f217da38bcd3138a4fc3cdeba8b8b2368d3dbb4d0cf0c8484ad8b9c9",
+        "ordinal": 1,
+        "portfolio_equity": "2000",
+        "requested_quantity": 8,
+        "signal_session": "2024-12-31",
+        "sizing_price": "123.45",
+        "symbol": "AAPL",
+        "target_shares": 8
+      },
+      {
+        "current_shares": 0,
+        "decision_rank": 2,
+        "execution_session": "2025-01-02",
+        "order_id": "order_5569a7b043670d9257496e735f70c2186d74e01d651af211570607bc11e3438f",
+        "ordinal": 2,
+        "portfolio_equity": "2000",
+        "requested_quantity": 20,
+        "signal_session": "2024-12-31",
+        "sizing_price": "50",
+        "symbol": "MSFT",
+        "target_shares": 20
+      }
+    ]
+  },
+  "fixture_version": "daily_clean_v1",
+  "portfolio": {
+    "cash_balance": "1000",
+    "positions": {
+      "PG": 40
+    }
+  },
+  "position_count": 2,
+  "snapshot_id": "snap_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "session_window": {
+    "count": 254,
+    "end": "2024-12-31",
+    "start": "2023-12-28"
+  },
+  "signal_session": "2024-12-31",
+  "symbols": {
+    "AAPL": {
+      "default_close": "100",
+      "long_close": "100",
+      "post_signal_close": "9999",
+      "short_close": "120",
+      "signal_sizing_close": "123.45"
+    },
+    "MSFT": {
+      "default_close": "100",
+      "long_close": "100",
+      "post_signal_close": "8888",
+      "short_close": "110",
+      "signal_sizing_close": "50"
+    },
+    "PG": {
+      "default_close": "100",
+      "long_close": "100",
+      "post_signal_close": "7777",
+      "short_close": "110",
+      "signal_sizing_close": "25"
+    },
+    "SPY": {
+      "default_close": "400",
+      "long_close": "400",
+      "post_signal_close": "6666",
+      "short_close": "420",
+      "signal_sizing_close": "400"
+    }
+  },
+  "universe": [
+    "AAPL",
+    "MSFT",
+    "PG"
+  ]
+}

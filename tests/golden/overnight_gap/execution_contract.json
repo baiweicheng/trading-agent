@@ -1,0 +1,97 @@
+{
+  "fixture_name": "zipline-execution-overnight-gap-v1",
+  "pinned_zipline_version": "3.1.1",
+  "event_loop": {
+    "signal_session": "2024-01-03",
+    "signal_close": "100.000000",
+    "execution_session": "2024-01-04",
+    "execution_open": "101.000000",
+    "requested_quantity": 900,
+    "fill_quantity": 900,
+    "fill_price": "101.101000",
+    "gross_notional": "90990.900000",
+    "commission": "45.495450",
+    "slippage_cost": "90.900000",
+    "initial_cash": "100000.000000",
+    "first_state_cash": "100000.000000"
+  },
+  "planner_cases": {
+    "sell_before_buy": {
+      "cash": "0",
+      "positions": {"AAPL": 10},
+      "opens": {"AAPL": "100", "MSFT": "100"},
+      "orders": [
+        {"id": "buy-msft", "symbol": "MSFT", "amount": 15, "decision_rank": 1},
+        {"id": "sell-aapl", "symbol": "AAPL", "amount": -10}
+      ],
+      "commission_bps": "0",
+      "slippage_bps": "0",
+      "fills": [
+        {"symbol": "AAPL", "quantity": -10},
+        {"symbol": "MSFT", "quantity": 10}
+      ],
+      "unfilled": [
+        {"symbol": "MSFT", "quantity": 5, "reason": "cash_constraint_including_commission"}
+      ],
+      "cash_after": "0.000000",
+      "positions_after": {"MSFT": 10}
+    },
+    "costs_and_cash_cap": {
+      "cash": "1001",
+      "positions": {},
+      "opens": {"AAPL": "100"},
+      "orders": [
+        {"id": "buy-aapl", "symbol": "AAPL", "amount": 10, "decision_rank": 1}
+      ],
+      "commission_bps": "5",
+      "slippage_bps": "10",
+      "fills": [
+        {
+          "symbol": "AAPL",
+          "quantity": 9,
+          "base_open": "100.000000",
+          "fill_price": "100.100000",
+          "gross_notional": "900.900000",
+          "commission": "0.450450",
+          "slippage_cost": "0.900000"
+        }
+      ],
+      "unfilled": [
+        {"symbol": "AAPL", "quantity": 1, "reason": "cash_constraint_including_commission"}
+      ],
+      "cash_after": "99.649550",
+      "positions_after": {"AAPL": 9}
+    },
+    "missing_next_open": {
+      "cash": "100000",
+      "positions": {},
+      "opens": {},
+      "orders": [
+        {"id": "missing-aapl", "symbol": "AAPL", "amount": 1, "decision_rank": 1}
+      ],
+      "commission_bps": "0",
+      "slippage_bps": "0",
+      "fills": [],
+      "unfilled": [
+        {"symbol": "AAPL", "quantity": 1, "reason": "missing_or_non_positive_adjusted_open"}
+      ],
+      "cash_after": "100000.000000",
+      "positions_after": {}
+    }
+  },
+  "actual_share_actions": {
+    "starting_shares": 5,
+    "split_ratio": "1.5",
+    "split_shares_before_fractional_cash": "7.5",
+    "actual_shares_after_split": 7,
+    "pre_action_close": "100",
+    "post_action_close": "66.66666666666666666666666667",
+    "zipline_stored_post_action_open": "66.667000",
+    "cash_in_lieu": "33.333333",
+    "dividend_per_share": "0.5",
+    "dividend_cash": "3.500000",
+    "total_action_cash": "36.833333",
+    "value_before_action": "500.000000",
+    "value_after_action": "500.000000"
+  }
+}

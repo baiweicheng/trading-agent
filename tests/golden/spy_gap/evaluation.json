@@ -1,0 +1,22 @@
+{
+  "fixture_version": "spy_gap_evaluation_v1",
+  "input": {
+    "evaluation_sessions": ["2024-01-31", "2024-02-01", "2024-02-02", "2024-02-29"],
+    "observed_spy_sessions": ["2024-01-31"]
+  },
+  "expected": {
+    "missing_sessions": ["2024-02-01", "2024-02-02", "2024-02-29"],
+    "symbol": "SPY",
+    "operation": "evaluation.benchmark",
+    "category": "validation.gap",
+    "field_path": "benchmark.sessions",
+    "corrective_action": "Repair the SPY gap in the pinned snapshot or select a snapshot with complete benchmark coverage.",
+    "diagnostic_strategy_metrics": {
+      "turnover": "0.01000055747533171657154170928",
+      "total_commissions": "0.500000",
+      "total_slippage": "0.100000",
+      "unfilled_orders": 1,
+      "ending_cash_balance": "98999.400000"
+    }
+  }
+}
