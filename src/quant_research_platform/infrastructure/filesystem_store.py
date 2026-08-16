@@ -62,9 +62,7 @@ class SnapshotMetadataIndex(Protocol):
     ) -> bool:
         """Insert or idempotently verify one published snapshot."""
 
-    def set_snapshot_availability(
-        self, snapshot_id: str, availability: str
-    ) -> object:
+    def set_snapshot_availability(self, snapshot_id: str, availability: str) -> object:
         """Update only operational availability for an indexed snapshot."""
 
 
@@ -720,8 +718,7 @@ class FilesystemStore:
                 "candidate must be a SnapshotManifest or SnapshotPublicationCandidate"
             )
         elif any(
-            value is not None
-            for value in (staged_objects, validation_report, staging)
+            value is not None for value in (staged_objects, validation_report, staging)
         ) or tuple(symbol_statuses):
             raise ValueError(
                 "publication overrides are accepted only with a SnapshotManifest"
@@ -905,8 +902,7 @@ class FilesystemStore:
                     manifest=verified_manifest,
                     directory=destination,
                     objects=tuple(
-                        promoted[reference.relative_uri]
-                        for reference in references
+                        promoted[reference.relative_uri] for reference in references
                     ),
                     validation_report=validation_stored,
                     indexed=indexed,
@@ -980,7 +976,7 @@ class FilesystemStore:
                         errors.append(f"{snapshot_id}: {type(error).__name__}")
 
                 for record in self._all_snapshot_records(index):
-                    snapshot_id = str(record.snapshot_id)
+                    snapshot_id = str(getattr(record, "snapshot_id", ""))
                     if snapshot_id not in verified:
                         try:
                             index.set_snapshot_availability(snapshot_id, "unavailable")
@@ -1005,9 +1001,7 @@ class FilesystemStore:
     reconcile_snapshots = reconcile
     startup_reconcile = reconcile
 
-    def read_manifest(
-        self, snapshot_id: str, relative_uri: str | None = None
-    ) -> bytes:
+    def read_manifest(self, snapshot_id: str, relative_uri: str | None = None) -> bytes:
         """Read a manifest only from a complete snapshot directory."""
         if _SNAPSHOT_ID.fullmatch(snapshot_id) is None:
             raise ValueError("snapshot_id must be a content-derived Snapshot_ID")
@@ -1082,6 +1076,50 @@ class FilesystemStore:
             for directory in self.snapshots_root.iterdir()
             if directory.is_dir() and _SNAPSHOT_ID.fullmatch(directory.name) is not None
         )
+
+    def artifact_reference(self, checksum: str) -> ArtifactReference:
+        """Load the publication-gated reference for one local CAS artifact."""
+
+        digest = _validate_checksum(checksum)
+        publication = self.publications_root / f"{digest}.json"
+        if not publication.is_file():
+            raise ArtifactNotPublishedError(
+                "artifact is not referenced by a published artifact record"
+            )
+        try:
+            document = json.loads(publication.read_bytes())
+        except (OSError, json.JSONDecodeError) as error:
+            raise IntegrityVerificationError(
+                f"published artifact record is unreadable: {publication}"
+            ) from error
+        if not isinstance(document, dict):
+            raise IntegrityVerificationError(
+                "published artifact record is not a mapping"
+            )
+        metadata = document.get("metadata")
+        relative_uri = document.get("relative_uri")
+        byte_size = document.get("byte_size")
+        if (
+            document.get("checksum") != digest
+            or not isinstance(metadata, Mapping)
+            or not isinstance(relative_uri, str)
+            or not isinstance(byte_size, int)
+            or isinstance(byte_size, bool)
+        ):
+            raise IntegrityVerificationError(
+                "published artifact record has invalid reference metadata"
+            )
+        try:
+            return ArtifactReference(
+                checksum=digest,
+                byte_size=byte_size,
+                relative_uri=relative_uri,
+                metadata_checksum=sha256_bytes(canonical_json(dict(metadata))),
+            )
+        except (TypeError, ValueError) as error:
+            raise IntegrityVerificationError(
+                "published artifact record has invalid reference fields"
+            ) from error
 
     def stream_artifact(
         self,
@@ -1194,9 +1232,7 @@ class FilesystemStore:
         explicit_mapping: Sequence[tuple[str, object]] = (),
     ) -> dict[str, object]:
         materialized = tuple(values)
-        result: dict[str, object] = {
-            key: value for key, value in explicit_mapping
-        }
+        result: dict[str, object] = {key: value for key, value in explicit_mapping}
         unkeyed: list[object] = []
         for value in materialized:
             uri = getattr(value, "relative_uri", None)
@@ -1257,6 +1293,7 @@ class FilesystemStore:
             raise StorageRootError(
                 f"snapshot object source is not a regular file: {path}"
             )
+
         def chunks() -> Iterator[bytes]:
             with path.open("rb") as handle:
                 while chunk := handle.read(_CHUNK_SIZE):
@@ -1633,9 +1670,7 @@ class FilesystemStore:
         if not isinstance(staged, StagedFile):
             raise TypeError("staged must be a StagedFile")
         area_path = self.staging_root / f".{staged.operation_id}.staging"
-        area = self._validated_staging_area(
-            StagingArea(staged.operation_id, area_path)
-        )
+        area = self._validated_staging_area(StagingArea(staged.operation_id, area_path))
         expected_path = _path_inside(area.path, staged.relative_path)
         if staged.path.resolve(strict=False) != expected_path.resolve(strict=False):
             raise UnsafeStoragePathError(

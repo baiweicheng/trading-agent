@@ -15,11 +15,18 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
-from typing import Any, Protocol, cast
+from typing import Protocol, cast
 from uuid import uuid4
 
 from ..domain.canonical import canonical_json, sha256_bytes
-from ..domain.errors import ActionableError, Err, ErrorCategory, LimitationDisclosure, Ok, Result
+from ..domain.errors import (
+    ActionableError,
+    Err,
+    ErrorCategory,
+    LimitationDisclosure,
+    Ok,
+    Result,
+)
 from ..domain.evaluation import (
     EvaluationMetrics,
     EvaluationResult,
@@ -44,7 +51,9 @@ from ..domain.market import DateRange, normalize_symbol
 class SnapshotScanPort(Protocol):
     """Minimal projected scan boundary used for normalized snapshot bars."""
 
-    def scan(self, refs: Sequence[object], columns: Sequence[str], **kwargs: object) -> object:
+    def scan(
+        self, refs: Sequence[object], columns: Sequence[str], **kwargs: object
+    ) -> object:
         """Return an iterable record-batch reader for the requested projection."""
 
 
@@ -98,17 +107,26 @@ def _unwrap(value: object, operation: str) -> object:
     if isinstance(value, Ok):
         return value.value
     if value is None:
-        raise _EvaluationFailure((_error(
-            operation,
-            ErrorCategory.STORAGE_IO,
-            f"{operation} returned no result.",
-            "Repair the injected snapshot or artifact port and retry evaluation.",
-            field_path=operation,
-        ),))
+        raise _EvaluationFailure(
+            (
+                _error(
+                    operation,
+                    ErrorCategory.STORAGE_IO,
+                    f"{operation} returned no result.",
+                    "Repair the injected snapshot or artifact port and retry evaluation.",
+                    field_path=operation,
+                ),
+            )
+        )
     return value
 
 
-def _invoke(method: Callable[..., object], *, positional: tuple[object, ...] = (), values: Mapping[str, object] = {}) -> object:
+def _invoke(
+    method: Callable[..., object],
+    *,
+    positional: tuple[object, ...] = (),
+    values: Mapping[str, object] = {},
+) -> object:
     """Call a structural port with only parameters that it declares."""
     try:
         signature = inspect.signature(method)
@@ -117,8 +135,7 @@ def _invoke(method: Callable[..., object], *, positional: tuple[object, ...] = (
 
     parameters = tuple(signature.parameters.values())
     has_var_kwargs = any(
-        parameter.kind is inspect.Parameter.VAR_KEYWORD
-        for parameter in parameters
+        parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters
     )
     explicit = tuple(
         parameter
@@ -152,7 +169,10 @@ def _invoke(method: Callable[..., object], *, positional: tuple[object, ...] = (
     positional_only: list[object] = []
     positional_index = 0
     for parameter in parameters:
-        if parameter.name == "self" or parameter.kind is inspect.Parameter.VAR_POSITIONAL:
+        if (
+            parameter.name == "self"
+            or parameter.kind is inspect.Parameter.VAR_POSITIONAL
+        ):
             continue
         if parameter.kind is inspect.Parameter.POSITIONAL_ONLY:
             if positional_index < len(positional):
@@ -273,12 +293,20 @@ class CanonicalArtifact:
         actual_checksum = sha256_bytes(self.payload)
         if self.checksum != actual_checksum:
             raise ValueError("artifact checksum does not match canonical payload")
-        if isinstance(self.byte_size, bool) or not isinstance(self.byte_size, int) or self.byte_size != len(self.payload):
+        if (
+            isinstance(self.byte_size, bool)
+            or not isinstance(self.byte_size, int)
+            or self.byte_size != len(self.payload)
+        ):
             raise ValueError("artifact byte_size must equal payload length")
         if self.row_count is not None and (
-            isinstance(self.row_count, bool) or not isinstance(self.row_count, int) or self.row_count < 0
+            isinstance(self.row_count, bool)
+            or not isinstance(self.row_count, int)
+            or self.row_count < 0
         ):
-            raise ValueError("artifact row_count must be a non-negative integer or None")
+            raise ValueError(
+                "artifact row_count must be a non-negative integer or None"
+            )
         object.__setattr__(self, "role", role)
 
     @property
@@ -402,7 +430,9 @@ def _artifact(
     return sha256_bytes(payload), payload, count, media_type
 
 
-def _chart_artifact(role: str, spec: Mapping[str, object]) -> tuple[str, bytes, int | None, str]:
+def _chart_artifact(
+    role: str, spec: Mapping[str, object]
+) -> tuple[str, bytes, int | None, str]:
     payload = canonical_json(dict(spec))
     return sha256_bytes(payload), payload, None, _CHART_MEDIA_TYPE
 
@@ -426,7 +456,9 @@ def _sessioned(values: Iterable[object], name: str) -> tuple[object, ...]:
     normalized = _as_tuple(values, name)
     keyed: list[tuple[date, object]] = []
     for item in normalized:
-        keyed.append((_date(_field(item, ("session", "date")), f"{name}.session"), item))
+        keyed.append(
+            (_date(_field(item, ("session", "date")), f"{name}.session"), item)
+        )
     keyed.sort(key=lambda pair: pair[0])
     sessions = [item[0] for item in keyed]
     if len(sessions) != len(set(sessions)):
@@ -434,7 +466,9 @@ def _sessioned(values: Iterable[object], name: str) -> tuple[object, ...]:
     return tuple(item for _, item in keyed)
 
 
-def _metric_rows(metric_sets: Sequence[EvaluationMetrics]) -> tuple[dict[str, object], ...]:
+def _metric_rows(
+    metric_sets: Sequence[EvaluationMetrics],
+) -> tuple[dict[str, object], ...]:
     rows: list[dict[str, object]] = []
     for metric_set in metric_sets:
         scope = MetricScope(metric_set.scope).value
@@ -464,17 +498,25 @@ def _state_rows(states: Sequence[object]) -> tuple[dict[str, object], ...]:
                 "cash_balance": _field(state, ("cash_balance", "cash")),
                 "gross_exposure": _field(state, ("gross_exposure", "gross")),
                 "leverage": _field(state, "leverage"),
-                "portfolio_equity": _field(state, ("portfolio_equity", "equity", "portfolio_value")),
+                "portfolio_equity": _field(
+                    state, ("portfolio_equity", "equity", "portfolio_value")
+                ),
                 "positions": [
                     {
-                        "mark_price": _field(position, ("mark_price", "price", "last_sale_price")),
+                        "mark_price": _field(
+                            position, ("mark_price", "price", "last_sale_price")
+                        ),
                         "market_value": _field(position, ("market_value", "value")),
                         "quantity": _field(position, ("quantity", "amount")),
-                        "symbol": normalize_symbol(str(_field(position, ("symbol", "ticker"), ""))),
+                        "symbol": normalize_symbol(
+                            str(_field(position, ("symbol", "ticker"), ""))
+                        ),
                     }
                     for position in sorted(
                         positions,
-                        key=lambda position: normalize_symbol(str(_field(position, ("symbol", "ticker"), ""))),
+                        key=lambda position: normalize_symbol(
+                            str(_field(position, ("symbol", "ticker"), ""))
+                        ),
                     )
                 ],
                 "session": _date(_field(state, "session")),
@@ -483,7 +525,9 @@ def _state_rows(states: Sequence[object]) -> tuple[dict[str, object], ...]:
     return tuple(rows)
 
 
-def _drawdown_rows(curves: Mapping[str, Sequence[tuple[date, Decimal]]]) -> tuple[dict[str, object], ...]:
+def _drawdown_rows(
+    curves: Mapping[str, Sequence[tuple[date, Decimal]]],
+) -> tuple[dict[str, object], ...]:
     rows: list[dict[str, object]] = []
     for scope, points in curves.items():
         peak: Decimal | None = None
@@ -501,7 +545,9 @@ def _drawdown_rows(curves: Mapping[str, Sequence[tuple[date, Decimal]]]) -> tupl
     return tuple(rows)
 
 
-def _equity_rows(curves: Mapping[str, Sequence[tuple[date, Decimal]]]) -> tuple[dict[str, object], ...]:
+def _equity_rows(
+    curves: Mapping[str, Sequence[tuple[date, Decimal]]],
+) -> tuple[dict[str, object], ...]:
     rows = [
         {"equity": equity, "scope": scope, "session": session}
         for scope, points in curves.items()
@@ -546,7 +592,9 @@ def _decision_rows(decisions: Sequence[object]) -> tuple[dict[str, object], ...]
         weight = _field(decision, "target_weight")
         if weight is not None:
             to_string = getattr(weight, "to_canonical_string", None)
-            values["target_weight"] = to_string() if callable(to_string) else str(weight)
+            values["target_weight"] = (
+                to_string() if callable(to_string) else str(weight)
+            )
         reason = _field(decision, "exclusion_reason")
         if reason is not None:
             values["exclusion_reason"] = getattr(reason, "value", reason)
@@ -570,22 +618,41 @@ def _order_rows(orders: Sequence[object]) -> tuple[dict[str, object], ...]:
     rows = [_row(order, names) for order in orders]
     for row in rows:
         row["status"] = getattr(row["status"], "value", row["status"])
-    rows.sort(key=lambda value: (
-        str(value["signal_session"]), str(value["execution_session"]),
-        str(value["symbol"]), int(value["ordinal"]), str(value["order_id"]),
-    ))
+    rows.sort(
+        key=lambda value: (
+            str(value["signal_session"]),
+            str(value["execution_session"]),
+            str(value["symbol"]),
+            int(value["ordinal"]),
+            str(value["order_id"]),
+        )
+    )
     return tuple(rows)
 
 
 def _fill_rows(fills: Sequence[object]) -> tuple[dict[str, object], ...]:
     names = (
-        "fill_id", "order_id", "symbol", "session", "quantity", "ordinal",
-        "base_adjusted_open", "fill_price", "gross_notional", "commission", "slippage_cost",
+        "fill_id",
+        "order_id",
+        "symbol",
+        "session",
+        "quantity",
+        "ordinal",
+        "base_adjusted_open",
+        "fill_price",
+        "gross_notional",
+        "commission",
+        "slippage_cost",
     )
     rows = [_row(fill, names) for fill in fills]
-    rows.sort(key=lambda value: (
-        str(value["session"]), str(value["symbol"]), int(value["ordinal"]), str(value["fill_id"]),
-    ))
+    rows.sort(
+        key=lambda value: (
+            str(value["session"]),
+            str(value["symbol"]),
+            int(value["ordinal"]),
+            str(value["fill_id"]),
+        )
+    )
     return tuple(rows)
 
 
@@ -594,36 +661,54 @@ def _position_rows(states: Sequence[object]) -> tuple[dict[str, object], ...]:
     for state in states:
         session = _date(_field(state, "session"))
         cash = _field(state, ("cash_balance", "cash"))
-        rows.append({
-            "market_value": cash,
-            "mark_price": None,
-            "quantity": None,
-            "row_kind": "cash",
-            "session": session,
-            "symbol": None,
-        })
+        rows.append(
+            {
+                "market_value": cash,
+                "mark_price": None,
+                "quantity": None,
+                "row_kind": "cash",
+                "session": session,
+                "symbol": None,
+            }
+        )
         positions = _as_tuple(_field(state, ("positions", "holdings"), ()), "positions")
         for position in positions:
-            rows.append({
-                "market_value": _field(position, ("market_value", "value")),
-                "mark_price": _field(position, ("mark_price", "price", "last_sale_price")),
-                "quantity": _field(position, ("quantity", "amount")),
-                "row_kind": "position",
-                "session": session,
-                "symbol": normalize_symbol(str(_field(position, ("symbol", "ticker"), ""))),
-            })
-    rows.sort(key=lambda row: (str(row["session"]), str(row["row_kind"]), str(row["symbol"] or "")))
+            rows.append(
+                {
+                    "market_value": _field(position, ("market_value", "value")),
+                    "mark_price": _field(
+                        position, ("mark_price", "price", "last_sale_price")
+                    ),
+                    "quantity": _field(position, ("quantity", "amount")),
+                    "row_kind": "position",
+                    "session": session,
+                    "symbol": normalize_symbol(
+                        str(_field(position, ("symbol", "ticker"), ""))
+                    ),
+                }
+            )
+    rows.sort(
+        key=lambda row: (
+            str(row["session"]),
+            str(row["row_kind"]),
+            str(row["symbol"] or ""),
+        )
+    )
     return tuple(rows)
 
 
-def _return_rows(returns: Sequence[DailyReturn], scope: str) -> tuple[dict[str, object], ...]:
+def _return_rows(
+    returns: Sequence[DailyReturn], scope: str
+) -> tuple[dict[str, object], ...]:
     return tuple(
         {"return_value": item.return_value, "scope": scope, "session": item.session}
         for item in sorted(returns, key=lambda value: value.session)
     )
 
 
-def _chart_spec(title: str, y_field: str, data_name: str, *, percent: bool = False) -> dict[str, object]:
+def _chart_spec(
+    title: str, y_field: str, data_name: str, *, percent: bool = False
+) -> dict[str, object]:
     axis: dict[str, object] = {"title": title}
     if percent:
         axis["format"] = ".2%"
@@ -653,7 +738,9 @@ def _extract_range(
     for owner in (output, config, snapshot):
         candidates = (
             _field(owner, ("evaluation_range", "requested_range")),
-            _field(_field(owner, "data", None), ("requested_range", "evaluation_range")),
+            _field(
+                _field(owner, "data", None), ("requested_range", "evaluation_range")
+            ),
         )
         manifest = _field(owner, ("manifest", "snapshot_manifest"))
         identity = _field(manifest, "content_identity")
@@ -668,7 +755,10 @@ def _extract_range(
                 start = _field(candidate, "start")
                 end = _field(candidate, "end")
                 if start is not None and end is not None:
-                    return DateRange(_date(start, "evaluation_range.start"), _date(end, "evaluation_range.end"))
+                    return DateRange(
+                        _date(start, "evaluation_range.start"),
+                        _date(end, "evaluation_range.end"),
+                    )
     if not strategy_sessions:
         raise ValueError("evaluation requires at least one strategy return session")
     return DateRange(min(strategy_sessions), max(strategy_sessions))
@@ -692,7 +782,9 @@ def _is_normalized_reference(reference: object) -> bool:
     kind = getattr(reference, "object_kind", _field(reference, "role"))
     kind = getattr(kind, "value", kind)
     schema = _field(reference, "schema_version", "")
-    return kind in {"normalized", "daily_bar", "daily_bar_v1"} or schema == "daily_bar_v1"
+    return (
+        kind in {"normalized", "daily_bar", "daily_bar_v1"} or schema == "daily_bar_v1"
+    )
 
 
 def _row_from_bar(value: object) -> tuple[date, Decimal]:
@@ -707,7 +799,10 @@ def _bar_values(value: object) -> tuple[object, ...]:
     if value is None:
         return ()
     if isinstance(value, Mapping):
-        if any(key in value for key in ("session", "date", "adjusted_close", "close", "return_value")):
+        if any(
+            key in value
+            for key in ("session", "date", "adjusted_close", "close", "return_value")
+        ):
             return (value,)
         return tuple(value.values())
     if isinstance(value, (str, bytes, bytearray)):
@@ -718,7 +813,9 @@ def _bar_values(value: object) -> tuple[object, ...]:
 class _BenchmarkValues(dict[date, Decimal]):
     """Normalized benchmark observations with an explicit value interpretation."""
 
-    def __init__(self, values: Mapping[date, Decimal], *, values_are_returns: bool = False) -> None:
+    def __init__(
+        self, values: Mapping[date, Decimal], *, values_are_returns: bool = False
+    ) -> None:
         super().__init__(values)
         self.values_are_returns = values_are_returns
 
@@ -729,11 +826,9 @@ def _read_batches(reader: object) -> tuple[object, ...]:
     if callable(direct_to_pylist):
         return tuple(direct_to_pylist())
     to_batches = getattr(reader, "to_batches", None)
-    batches: Iterable[object]
-    if callable(to_batches):
-        batches = to_batches()
-    else:
-        batches = _bar_values(reader)
+    batches: Iterable[object] = (
+        to_batches() if callable(to_batches) else _bar_values(reader)
+    )
     rows: list[object] = []
     for batch in batches:
         to_pylist = getattr(batch, "to_pylist", None)
@@ -798,7 +893,9 @@ class EvaluationOutput:
             "strategy_metrics": self.evaluation_result.strategy_metrics.to_serializable(),
             "total_commissions": self.total_commissions,
             "total_slippage": self.total_slippage,
-            "unfilled_orders": [_to_serializable(item) for item in self.unfilled_orders],
+            "unfilled_orders": [
+                _to_serializable(item) for item in self.unfilled_orders
+            ],
         }
 
 
@@ -821,8 +918,16 @@ class EvaluationService:
         **compatibility: object,
     ) -> None:
         self.snapshot_manager = snapshot_manager or compatibility.pop("snapshot", None)
-        self.parquet_store = parquet_store or compatibility.pop("parquet", None) or compatibility.pop("data_store", None)
-        self.artifact_store = artifact_store or compatibility.pop("artifacts", None) or compatibility.pop("artifact_repository", None)
+        self.parquet_store = (
+            parquet_store
+            or compatibility.pop("parquet", None)
+            or compatibility.pop("data_store", None)
+        )
+        self.artifact_store = (
+            artifact_store
+            or compatibility.pop("artifacts", None)
+            or compatibility.pop("artifact_repository", None)
+        )
         self.snapshot_reader = snapshot_reader or compatibility.pop("reader", None)
         self.bar_reader = bar_reader or compatibility.pop("normalized_reader", None)
         if compatibility:
@@ -845,24 +950,37 @@ class EvaluationService:
         del request
         candidate = output or core_output or audited_output
         if candidate is None:
-            return Err((self._input_error("core backtest output is required", "core_output"),))
+            return Err(
+                (self._input_error("core backtest output is required", "core_output"),)
+            )
         try:
             core = self._core_output(candidate)
-            if snapshot is None and snapshot_id is not None and self.snapshot_manager is not None:
+            if (
+                snapshot is None
+                and snapshot_id is not None
+                and self.snapshot_manager is not None
+            ):
                 opener = getattr(self.snapshot_manager, "open_verified", None)
                 if callable(opener):
                     snapshot = _unwrap(
-                        _invoke(opener, positional=(snapshot_id,), values={"snapshot_id": snapshot_id}),
+                        _invoke(
+                            opener,
+                            positional=(snapshot_id,),
+                            values={"snapshot_id": snapshot_id},
+                        ),
                         "snapshot.open",
                     )
-            states = _sessioned(_field(core, "portfolio_states", ()), "portfolio_states")
+            states = _sessioned(
+                _field(core, "portfolio_states", ()), "portfolio_states"
+            )
             raw_returns = _sessioned(_field(core, "daily_returns", ()), "daily_returns")
             strategy_returns, strategy_equity, range_value = self._strategy_series(
                 states, raw_returns, candidate, config, snapshot, evaluation_range
             )
             benchmark_values = self._benchmark_values(snapshot, range_value)
             missing = tuple(
-                session for session in (item.session for item in strategy_returns)
+                session
+                for session in (item.session for item in strategy_returns)
                 if session not in benchmark_values
             )
             if missing:
@@ -890,7 +1008,8 @@ class EvaluationService:
                 tuple(
                     state
                     for state in states
-                    if _date(_field(state, "session")) in {item.session for item in strategy_returns}
+                    if _date(_field(state, "session"))
+                    in {item.session for item in strategy_returns}
                 )
                 if states and all(isinstance(state, PortfolioState) for state in states)
                 else tuple(equity for _, equity in strategy_equity),
@@ -922,11 +1041,18 @@ class EvaluationService:
             )
             artifacts = self._publish_artifacts(artifacts)
             unfilled = tuple(
-                order for order in orders
-                if getattr(getattr(order, "status", None), "value", getattr(order, "status", None))
+                order
+                for order in orders
+                if getattr(
+                    getattr(order, "status", None),
+                    "value",
+                    getattr(order, "status", None),
+                )
                 in {OrderStatus.PARTIALLY_FILLED.value, OrderStatus.UNFILLED.value}
             )
-            ending_cash = _field(states[-1], ("cash_balance", "cash")) if states else None
+            ending_cash = (
+                _field(states[-1], ("cash_balance", "cash")) if states else None
+            )
             output_value = EvaluationOutput(
                 evaluation_result=result,
                 evaluation_range=range_value,
@@ -940,9 +1066,15 @@ class EvaluationService:
                 limitation_disclosure=disclosure,
                 unfilled_orders=unfilled,
                 unfilled_diagnostics=(),
-                ending_cash_balance=_decimal(ending_cash, "ending_cash_balance") if ending_cash is not None else None,
-                total_commissions=self._metric_decimal(strategy_metrics, MetricName.TOTAL_COMMISSIONS),
-                total_slippage=self._metric_decimal(strategy_metrics, MetricName.TOTAL_SLIPPAGE),
+                ending_cash_balance=_decimal(ending_cash, "ending_cash_balance")
+                if ending_cash is not None
+                else None,
+                total_commissions=self._metric_decimal(
+                    strategy_metrics, MetricName.TOTAL_COMMISSIONS
+                ),
+                total_slippage=self._metric_decimal(
+                    strategy_metrics, MetricName.TOTAL_SLIPPAGE
+                ),
             )
             self.last_errors = ()
             self.last_result = output_value
@@ -950,12 +1082,20 @@ class EvaluationService:
         except _EvaluationFailure as failure:
             self.last_errors = failure.errors
             return Err(failure.errors, preserve_order=True)
-        except (TypeError, ValueError, ArithmeticError, KeyError, InvalidOperation) as failure:
+        except (
+            TypeError,
+            ValueError,
+            ArithmeticError,
+            KeyError,
+            InvalidOperation,
+        ) as failure:
             error = self._input_error(str(failure), "evaluation")
             self.last_errors = (error,)
             return Err((error,), preserve_order=True)
         except Exception as failure:
-            error = ActionableError.from_unexpected_exception(self.operation_name, failure)
+            error = ActionableError.from_unexpected_exception(
+                self.operation_name, failure
+            )
             self.last_errors = (error,)
             return Err((error,), preserve_order=True)
 
@@ -969,11 +1109,19 @@ class EvaluationService:
         for name in ("audited_output", "core_output", "output"):
             candidate = getattr(value, name, None)
             if candidate is not None and candidate is not value:
-                if name == "output" and not any(hasattr(value, required) for required in ("orders", "fills", "daily_returns")):
+                if name == "output" and not any(
+                    hasattr(value, required)
+                    for required in ("orders", "fills", "daily_returns")
+                ):
                     return EvaluationService._core_output(candidate)
                 return candidate
-        if not all(hasattr(value, required) for required in ("orders", "fills", "portfolio_states", "daily_returns")):
-            raise ValueError("core output must contain orders, fills, portfolio_states, and daily_returns")
+        if not all(
+            hasattr(value, required)
+            for required in ("orders", "fills", "portfolio_states", "daily_returns")
+        ):
+            raise ValueError(
+                "core output must contain orders, fills, portfolio_states, and daily_returns"
+            )
         return value
 
     def _strategy_series(
@@ -998,7 +1146,10 @@ class EvaluationService:
         returns: list[DailyReturn] = []
         for item in raw_returns:
             session = _date(_field(item, "session"), "daily_return.session")
-            value = _decimal(_field(item, ("return_value", "returns", "value")), "daily_return.return_value")
+            value = _decimal(
+                _field(item, ("return_value", "returns", "value")),
+                "daily_return.return_value",
+            )
             returns.append(DailyReturn(session, value))
         returns.sort(key=lambda item: item.session)
         if not returns:
@@ -1008,7 +1159,11 @@ class EvaluationService:
             previous: Decimal | None = None
             for session in ordered_sessions:
                 equity = state_map[session]
-                value = Decimal("0") if previous is None else equity / previous - Decimal("1")
+                value = (
+                    Decimal("0")
+                    if previous is None
+                    else equity / previous - Decimal("1")
+                )
                 returns.append(DailyReturn(session, value))
                 previous = equity
         if len({item.session for item in returns}) != len(returns):
@@ -1020,24 +1175,40 @@ class EvaluationService:
             snapshot=snapshot,
             strategy_sessions=[item.session for item in returns],
         )
-        selected_returns = tuple(item for item in returns if requested.start <= item.session <= requested.end)
+        selected_returns = tuple(
+            item for item in returns if requested.start <= item.session <= requested.end
+        )
         if not selected_returns:
             raise ValueError("evaluation range contains no strategy return sessions")
         curve: list[tuple[date, Decimal]] = []
         for item in selected_returns:
             if item.session not in state_map:
-                raise ValueError(f"missing portfolio equity for evaluation session {item.session.isoformat()}")
+                raise ValueError(
+                    f"missing portfolio equity for evaluation session {item.session.isoformat()}"
+                )
             curve.append((item.session, state_map[item.session]))
-        return selected_returns, tuple(curve), DateRange(selected_returns[0].session, selected_returns[-1].session)
+        return (
+            selected_returns,
+            tuple(curve),
+            DateRange(selected_returns[0].session, selected_returns[-1].session),
+        )
 
-    def _benchmark_values(self, snapshot: object | None, range_value: DateRange) -> Mapping[date, Decimal]:
+    def _benchmark_values(
+        self, snapshot: object | None, range_value: DateRange
+    ) -> Mapping[date, Decimal]:
         direct = self._direct_benchmark(snapshot)
         if direct is not None:
             name = next(
                 name
                 for name in (
-                    "benchmark_bars", "spy_bars", "benchmark_series", "spy_series",
-                    "benchmark_returns", "spy_returns", "benchmark_values", "spy_values",
+                    "benchmark_bars",
+                    "spy_bars",
+                    "benchmark_series",
+                    "spy_series",
+                    "benchmark_returns",
+                    "spy_returns",
+                    "benchmark_values",
+                    "spy_values",
                 )
                 if _field(snapshot, name) is direct
             )
@@ -1045,7 +1216,11 @@ class EvaluationService:
                 direct,
                 values_are_returns=name in {"benchmark_returns", "spy_returns"},
             )
-        refs = tuple(reference for reference in _snapshot_refs(snapshot) if _is_normalized_reference(reference))
+        refs = tuple(
+            reference
+            for reference in _snapshot_refs(snapshot)
+            if _is_normalized_reference(reference)
+        )
         if self.bar_reader is not None:
             method = getattr(self.bar_reader, "read", self.bar_reader)
             if callable(method):
@@ -1066,10 +1241,17 @@ class EvaluationService:
                 return self._normalize_benchmark(_unwrap(value, "snapshot.benchmark"))
         store = self.parquet_store
         if store is None:
-            reader = self.snapshot_reader or _field(snapshot, ("reader", "store", "storage"))
+            reader = self.snapshot_reader or _field(
+                snapshot, ("reader", "store", "storage")
+            )
             store = reader
         if store is not None:
-            for method_name in ("scan", "scan_normalized", "read_normalized", "read_bars"):
+            for method_name in (
+                "scan",
+                "scan_normalized",
+                "read_normalized",
+                "read_bars",
+            ):
                 method = getattr(store, method_name, None)
                 if not callable(method):
                     continue
@@ -1092,7 +1274,9 @@ class EvaluationService:
                             "end": range_value.end,
                         },
                     )
-                    return self._normalize_benchmark(_unwrap(value, "snapshot.benchmark"))
+                    return self._normalize_benchmark(
+                        _unwrap(value, "snapshot.benchmark")
+                    )
                 except TypeError:
                     continue
         return {}
@@ -1102,8 +1286,14 @@ class EvaluationService:
         if snapshot is None:
             return None
         for name in (
-            "benchmark_bars", "spy_bars", "benchmark_series", "spy_series",
-            "benchmark_returns", "spy_returns", "benchmark_values", "spy_values",
+            "benchmark_bars",
+            "spy_bars",
+            "benchmark_series",
+            "spy_series",
+            "benchmark_returns",
+            "spy_returns",
+            "benchmark_values",
+            "spy_values",
         ):
             value = _field(snapshot, name)
             if value is not None:
@@ -1122,7 +1312,9 @@ class EvaluationService:
             rows: Iterable[object] = tuple(
                 {
                     "session": session,
-                    "return_value" if values_are_returns else "adjusted_close": observation,
+                    "return_value"
+                    if values_are_returns
+                    else "adjusted_close": observation,
                 }
                 for session, observation in value.items()
             )
@@ -1139,7 +1331,9 @@ class EvaluationService:
             else:
                 session, close = _row_from_bar(item)
             if session in result and result[session] != close:
-                raise ValueError(f"benchmark contains conflicting rows for {session.isoformat()}")
+                raise ValueError(
+                    f"benchmark contains conflicting rows for {session.isoformat()}"
+                )
             result[session] = close
         return _BenchmarkValues(result, values_are_returns=values_are_returns)
 
@@ -1180,7 +1374,11 @@ class EvaluationService:
         if not isinstance(value, LimitationDisclosure):
             manifest = _field(snapshot, ("manifest", "snapshot_manifest"))
             value = _field(manifest, "limitation_disclosure")
-        return value if isinstance(value, LimitationDisclosure) else LimitationDisclosure.current()
+        return (
+            value
+            if isinstance(value, LimitationDisclosure)
+            else LimitationDisclosure.current()
+        )
 
     def _build_artifacts(
         self,
@@ -1209,35 +1407,122 @@ class EvaluationService:
             checksum, payload, count, resolved_media = _artifact(
                 role, schema, rows, row_count=row_count, media_type=media_type
             )
-            payloads.append(CanonicalArtifact(role, checksum, len(payload), resolved_media, schema, count, payload))
+            payloads.append(
+                CanonicalArtifact(
+                    role, checksum, len(payload), resolved_media, schema, count, payload
+                )
+            )
 
-        add("benchmark_returns", _SCHEMA_VERSIONS["returns"], _return_rows(benchmark_returns, "benchmark"), row_count=len(benchmark_returns))
-        add("benchmark_equity", _SCHEMA_VERSIONS["equity"], _equity_rows({"benchmark": benchmark_equity}), row_count=len(benchmark_equity))
-        add("chart_drawdown", _SCHEMA_VERSIONS["chart"], _chart_spec("Strategy and SPY drawdown", "drawdown", "drawdown", percent=True), media_type=_CHART_MEDIA_TYPE)
-        add("chart_equity_curve", _SCHEMA_VERSIONS["chart"], _chart_spec("Strategy and SPY equity", "equity", "equity_curve"), media_type=_CHART_MEDIA_TYPE)
-        add("chart_monthly_returns", _SCHEMA_VERSIONS["chart"], _chart_spec("Monthly returns", "return_value", "monthly_returns", percent=True), media_type=_CHART_MEDIA_TYPE)
-        add("decisions", _SCHEMA_VERSIONS["decisions"], _decision_rows(_as_tuple(_field(core, "strategy_decisions", ()), "strategy_decisions")))
-        add("drawdown", _SCHEMA_VERSIONS["drawdown"], _drawdown_rows(curves), row_count=len(strategy_equity) + len(benchmark_equity))
-        add("fills", _SCHEMA_VERSIONS["fills"], _fill_rows(_as_tuple(_field(core, "fills", ()), "fills")))
-        add("metrics", _SCHEMA_VERSIONS["metrics"], _metric_rows((result.strategy_metrics, result.benchmark_metrics, result.differences)))
-        add("monthly_returns", _SCHEMA_VERSIONS["monthly_returns"], _monthly_rows(strategy_monthly, benchmark_monthly))
-        add("orders", _SCHEMA_VERSIONS["orders"], _order_rows(_as_tuple(_field(core, "orders", ()), "orders")))
-        add("portfolio", _SCHEMA_VERSIONS["portfolio"], _state_rows(states), row_count=len(states))
+        add(
+            "benchmark_returns",
+            _SCHEMA_VERSIONS["returns"],
+            _return_rows(benchmark_returns, "benchmark"),
+            row_count=len(benchmark_returns),
+        )
+        add(
+            "benchmark_equity",
+            _SCHEMA_VERSIONS["equity"],
+            _equity_rows({"benchmark": benchmark_equity}),
+            row_count=len(benchmark_equity),
+        )
+        add(
+            "chart_drawdown",
+            _SCHEMA_VERSIONS["chart"],
+            _chart_spec(
+                "Strategy and SPY drawdown", "drawdown", "drawdown", percent=True
+            ),
+            media_type=_CHART_MEDIA_TYPE,
+        )
+        add(
+            "chart_equity_curve",
+            _SCHEMA_VERSIONS["chart"],
+            _chart_spec("Strategy and SPY equity", "equity", "equity_curve"),
+            media_type=_CHART_MEDIA_TYPE,
+        )
+        add(
+            "chart_monthly_returns",
+            _SCHEMA_VERSIONS["chart"],
+            _chart_spec(
+                "Monthly returns", "return_value", "monthly_returns", percent=True
+            ),
+            media_type=_CHART_MEDIA_TYPE,
+        )
+        add(
+            "decisions",
+            _SCHEMA_VERSIONS["decisions"],
+            _decision_rows(
+                _as_tuple(_field(core, "strategy_decisions", ()), "strategy_decisions")
+            ),
+        )
+        add(
+            "drawdown",
+            _SCHEMA_VERSIONS["drawdown"],
+            _drawdown_rows(curves),
+            row_count=len(strategy_equity) + len(benchmark_equity),
+        )
+        add(
+            "fills",
+            _SCHEMA_VERSIONS["fills"],
+            _fill_rows(_as_tuple(_field(core, "fills", ()), "fills")),
+        )
+        add(
+            "metrics",
+            _SCHEMA_VERSIONS["metrics"],
+            _metric_rows(
+                (result.strategy_metrics, result.benchmark_metrics, result.differences)
+            ),
+        )
+        add(
+            "monthly_returns",
+            _SCHEMA_VERSIONS["monthly_returns"],
+            _monthly_rows(strategy_monthly, benchmark_monthly),
+        )
+        add(
+            "orders",
+            _SCHEMA_VERSIONS["orders"],
+            _order_rows(_as_tuple(_field(core, "orders", ()), "orders")),
+        )
+        add(
+            "portfolio",
+            _SCHEMA_VERSIONS["portfolio"],
+            _state_rows(states),
+            row_count=len(states),
+        )
         add("positions", _SCHEMA_VERSIONS["positions"], _position_rows(states))
-        add("strategy_equity", _SCHEMA_VERSIONS["equity"], _equity_rows({"strategy": strategy_equity}), row_count=len(strategy_equity))
-        add("strategy_returns", _SCHEMA_VERSIONS["returns"], _return_rows(strategy_returns, "strategy"), row_count=len(strategy_returns))
+        add(
+            "strategy_equity",
+            _SCHEMA_VERSIONS["equity"],
+            _equity_rows({"strategy": strategy_equity}),
+            row_count=len(strategy_equity),
+        )
+        add(
+            "strategy_returns",
+            _SCHEMA_VERSIONS["returns"],
+            _return_rows(strategy_returns, "strategy"),
+            row_count=len(strategy_returns),
+        )
         # A compact combined transaction view is useful to inspection callers;
         # orders and fills remain separately checksummed above.
         add(
             "transactions",
             _SCHEMA_VERSIONS["transactions"],
-            {"fills": list(_fill_rows(_as_tuple(_field(core, "fills", ()), "fills"))),
-             "orders": list(_order_rows(_as_tuple(_field(core, "orders", ()), "orders"))),
-             "schema_version": _SCHEMA_VERSIONS["transactions"]},
+            {
+                "fills": list(
+                    _fill_rows(_as_tuple(_field(core, "fills", ()), "fills"))
+                ),
+                "orders": list(
+                    _order_rows(_as_tuple(_field(core, "orders", ()), "orders"))
+                ),
+                "schema_version": _SCHEMA_VERSIONS["transactions"],
+            },
         )
-        return CanonicalResultArtifacts(tuple(sorted(payloads, key=lambda item: item.role)))
+        return CanonicalResultArtifacts(
+            tuple(sorted(payloads, key=lambda item: item.role))
+        )
 
-    def _publish_artifacts(self, artifacts: CanonicalResultArtifacts) -> CanonicalResultArtifacts:
+    def _publish_artifacts(
+        self, artifacts: CanonicalResultArtifacts
+    ) -> CanonicalResultArtifacts:
         store = self.artifact_store
         if store is None:
             return artifacts
@@ -1248,22 +1533,30 @@ class EvaluationService:
             except _EvaluationFailure:
                 raise
             except Exception as failure:
-                raise _EvaluationFailure((
-                    ActionableError.from_unexpected_exception(
-                        "artifact.publish", failure, correlation_id=artifact.checksum
-                    ),
-                )) from None
-            published.append(CanonicalArtifact(
-                artifact.role,
-                artifact.checksum,
-                artifact.byte_size,
-                artifact.media_type,
-                artifact.schema_version,
-                artifact.row_count,
-                artifact.payload,
-                reference,
-            ))
-        return CanonicalResultArtifacts(tuple(sorted(published, key=lambda item: item.role)))
+                raise _EvaluationFailure(
+                    (
+                        ActionableError.from_unexpected_exception(
+                            "artifact.publish",
+                            failure,
+                            correlation_id=artifact.checksum,
+                        ),
+                    )
+                ) from None
+            published.append(
+                CanonicalArtifact(
+                    artifact.role,
+                    artifact.checksum,
+                    artifact.byte_size,
+                    artifact.media_type,
+                    artifact.schema_version,
+                    artifact.row_count,
+                    artifact.payload,
+                    reference,
+                )
+            )
+        return CanonicalResultArtifacts(
+            tuple(sorted(published, key=lambda item: item.role))
+        )
 
     @staticmethod
     def _publish_one(store: object, artifact: CanonicalArtifact) -> object | None:
@@ -1279,24 +1572,58 @@ class EvaluationService:
             method = getattr(store, method_name, None)
             if not callable(method):
                 continue
-            if method_name == "publish_artifact" and callable(getattr(store, "create_staging", None)):
-                staging = _invoke(cast(Callable[..., object], getattr(store, "create_staging")), values={"operation_id": f"evaluation-{artifact.checksum[:16]}-{uuid4().hex}"})
+            if method_name == "publish_artifact" and callable(
+                getattr(store, "create_staging", None)
+            ):
+                staging = _invoke(
+                    cast(Callable[..., object], getattr(store, "create_staging")),
+                    values={
+                        "operation_id": f"evaluation-{artifact.checksum[:16]}-{uuid4().hex}"
+                    },
+                )
                 staged = _invoke(
                     cast(Callable[..., object], getattr(store, "stage_bytes")),
-                    positional=(staging, f"evaluation/{artifact.role}-{artifact.checksum}.json", artifact.payload),
-                    values={"staging": staging, "relative_path": f"evaluation/{artifact.role}-{artifact.checksum}.json", "data": artifact.payload, "bytes": artifact.payload, "expected_checksum": artifact.checksum},
+                    positional=(
+                        staging,
+                        f"evaluation/{artifact.role}-{artifact.checksum}.json",
+                        artifact.payload,
+                    ),
+                    values={
+                        "staging": staging,
+                        "relative_path": f"evaluation/{artifact.role}-{artifact.checksum}.json",
+                        "data": artifact.payload,
+                        "bytes": artifact.payload,
+                        "expected_checksum": artifact.checksum,
+                    },
                 )
-                return _invoke(method, positional=(staged,), values={"staged": staged, "artifact": staged, "metadata": metadata})
-            return _invoke(method, positional=(artifact.payload,), values={"payload": artifact.payload, "data": artifact.payload, "bytes": artifact.payload, "role": artifact.role, "metadata": metadata, "checksum": artifact.checksum})
-        raise _EvaluationFailure((
-            _error(
-                "artifact.publish",
-                ErrorCategory.STORAGE_IO,
-                "The artifact store does not expose a publication method.",
-                "Configure an artifact store with publish_artifact, put, store, or write support.",
-                field_path="artifact_store",
-            ),
-        ))
+                return _invoke(
+                    method,
+                    positional=(staged,),
+                    values={"staged": staged, "artifact": staged, "metadata": metadata},
+                )
+            return _invoke(
+                method,
+                positional=(artifact.payload,),
+                values={
+                    "payload": artifact.payload,
+                    "data": artifact.payload,
+                    "bytes": artifact.payload,
+                    "role": artifact.role,
+                    "metadata": metadata,
+                    "checksum": artifact.checksum,
+                },
+            )
+        raise _EvaluationFailure(
+            (
+                _error(
+                    "artifact.publish",
+                    ErrorCategory.STORAGE_IO,
+                    "The artifact store does not expose a publication method.",
+                    "Configure an artifact store with publish_artifact, put, store, or write support.",
+                    field_path="artifact_store",
+                ),
+            )
+        )
 
     @staticmethod
     def _metric_decimal(metrics: EvaluationMetrics, name: MetricName) -> Decimal:

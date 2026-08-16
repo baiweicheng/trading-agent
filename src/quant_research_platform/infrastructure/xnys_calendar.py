@@ -119,9 +119,9 @@ class XNYSCalendar:
         return tuple(
             {
                 "session": session.isoformat(),
-                "open_utc": _to_utc_datetime(
-                    self._calendar.session_open(session)
-                ).isoformat().replace("+00:00", "Z"),
+                "open_utc": _to_utc_datetime(self._calendar.session_open(session))
+                .isoformat()
+                .replace("+00:00", "Z"),
                 "close_utc": self.close_timestamp(session)
                 .isoformat()
                 .replace("+00:00", "Z"),

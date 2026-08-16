@@ -92,15 +92,11 @@ def _comparison_output() -> object:
     checksum = sha256(payload).hexdigest()
     metric = {
         "scope": "strategy",
-        "metrics": [
-            {"name": "total_return", "value": "0.1", "null_reason": None}
-        ],
+        "metrics": [{"name": "total_return", "value": "0.1", "null_reason": None}],
     }
     benchmark_metric = {
         "scope": "benchmark",
-        "metrics": [
-            {"name": "total_return", "value": "0.05", "null_reason": None}
-        ],
+        "metrics": [{"name": "total_return", "value": "0.05", "null_reason": None}],
     }
     curves = (
         {
@@ -157,19 +153,15 @@ def test_invalid_selection_is_bounded_structured_and_does_not_call_comparison() 
     assert button[2]["disabled"] is True
     assert any("minimum is 2" in str(call) for call in _calls(ui, "error"))
     assert any(
-        "Limitations and assumptions" in str(call)
-        for call in _calls(ui, "subheader")
+        "Limitations and assumptions" in str(call) for call in _calls(ui, "subheader")
     )
 
 
-def test_valid_selection_renders_provenance_curves_and_download(
-) -> None:
+def test_valid_selection_renders_provenance_curves_and_download() -> None:
     first = str(UUID(int=1))
     second = str(UUID(int=2))
     ui = FakeStreamlit(selected=(second, first))
-    application = FakeApplication(
-        (_summary(1), _summary(2)), Ok(_comparison_output())
-    )
+    application = FakeApplication((_summary(1), _summary(2)), Ok(_comparison_output()))
 
     render_compare(application, st_module=ui)
 
@@ -184,8 +176,9 @@ def test_valid_selection_renders_provenance_curves_and_download(
     assert all("secret" not in labels.casefold() for _ in (0,))
 
 
-def test_duplicate_and_nonterminal_selections_are_rejected_before_facade_compare(
-) -> None:
+def test_duplicate_and_nonterminal_selections_are_rejected_before_facade_compare() -> (
+    None
+):
     running = str(UUID(int=3))
     first = str(UUID(int=1))
     ui = FakeStreamlit(selected=(first, first, running))
@@ -215,7 +208,6 @@ def test_no_common_session_error_is_structured_and_disclosure_remains_visible() 
 
     assert application.compared is not None
     assert any(
-        "no common sessions" in str(call).lower()
-        for call in _calls(ui, "error")
+        "no common sessions" in str(call).lower() for call in _calls(ui, "error")
     )
     assert any(call[0] == "info" for call in ui.calls)

@@ -53,7 +53,9 @@ class Ingestion:
     def __init__(self) -> None:
         self.calls: list[tuple[object, object, object]] = []
 
-    def ingest(self, request: object, config: object, *, progress: object = None) -> Ok[str]:
+    def ingest(
+        self, request: object, config: object, *, progress: object = None
+    ) -> Ok[str]:
         self.calls.append((request, config, progress))
         return Ok("ingested")
 
@@ -62,7 +64,9 @@ class Backtest:
     def __init__(self) -> None:
         self.calls: list[tuple[object, object, object]] = []
 
-    def run(self, request: object, config: object, *, progress: object = None) -> Ok[str]:
+    def run(
+        self, request: object, config: object, *, progress: object = None
+    ) -> Ok[str]:
         self.calls.append((request, config, progress))
         return Ok("backtested")
 
@@ -93,7 +97,9 @@ def test_configuration_resolution_returns_redacted_view_and_opaque_handle() -> N
     assert "batch_size" in str(manager.calls[0][0])
 
 
-def test_valid_handle_delegates_the_same_frozen_configuration_to_ingestion_and_backtest() -> None:
+def test_valid_handle_delegates_the_same_frozen_configuration_to_ingestion_and_backtest() -> (
+    None
+):
     config = _config()
     manager = ConfigurationManager(config)
     ingestion = Ingestion()
@@ -119,7 +125,9 @@ def test_valid_handle_delegates_the_same_frozen_configuration_to_ingestion_and_b
     assert backtest.calls == [(backtest_request, config, progress)]
 
 
-def test_unknown_and_invalidated_handles_are_rejected_before_service_invocation() -> None:
+def test_unknown_and_invalidated_handles_are_rejected_before_service_invocation() -> (
+    None
+):
     config = _config()
     ingestion = Ingestion()
     app = ResearchApplication(
@@ -141,7 +149,10 @@ def test_unknown_and_invalidated_handles_are_rejected_before_service_invocation(
     assert isinstance(invalidated, Ok)
     assert isinstance(stale, Err)
     assert isinstance(invalid_type, Err)
-    assert all(error.category is ErrorCategory.CONFIGURATION_INVALID_VALUE for error in (unknown.errors + stale.errors + invalid_type.errors))
+    assert all(
+        error.category is ErrorCategory.CONFIGURATION_INVALID_VALUE
+        for error in (unknown.errors + stale.errors + invalid_type.errors)
+    )
     assert ingestion.calls == []
 
 
@@ -172,11 +183,15 @@ def test_discovery_and_artifact_operations_return_typed_pages_and_delegate() -> 
 
         def list_snapshots(self, query: object) -> object:
             self.snapshot_query = query
-            return SimpleNamespace(items=("snapshot",), page=0, page_size=100, total=1, errors=())
+            return SimpleNamespace(
+                items=("snapshot",), page=0, page_size=100, total=1, errors=()
+            )
 
         def search_runs(self, query: object) -> object:
             self.run_query = query
-            return SimpleNamespace(records=(summary,), page=0, page_size=100, total_count=1)
+            return SimpleNamespace(
+                records=(summary,), page=0, page_size=100, total_count=1
+            )
 
     class Operations:
         def __init__(self) -> None:
@@ -190,8 +205,22 @@ def test_discovery_and_artifact_operations_return_typed_pages_and_delegate() -> 
             self.calls.append(("compare", (run_ids,), {}))
             return Ok("comparison")
 
-        def page_artifact(self, checksum: str, page: int, page_size: int | None, columns: object = None, *, order_by: object = None) -> Ok[str]:
-            self.calls.append(("page", (checksum, page, page_size), {"columns": columns, "order_by": order_by}))
+        def page_artifact(
+            self,
+            checksum: str,
+            page: int,
+            page_size: int | None,
+            columns: object = None,
+            *,
+            order_by: object = None,
+        ) -> Ok[str]:
+            self.calls.append(
+                (
+                    "page",
+                    (checksum, page, page_size),
+                    {"columns": columns, "order_by": order_by},
+                )
+            )
             return Ok("table-page")
 
         def open_artifact(self, checksum: str) -> Ok[str]:
@@ -226,10 +255,17 @@ def test_discovery_and_artifact_operations_return_typed_pages_and_delegate() -> 
     assert isinstance(artifact, Ok) and artifact.value == "artifact-stream"
     assert discovery.snapshot_query is not None
     assert isinstance(discovery.run_query, RunQuery)
-    assert [call[0] for call in operations.calls] == ["run", "compare", "page", "artifact"]
+    assert [call[0] for call in operations.calls] == [
+        "run",
+        "compare",
+        "page",
+        "artifact",
+    ]
 
 
-def test_unexpected_exception_is_sanitized_logged_with_correlation_id_and_no_raw_exception() -> None:
+def test_unexpected_exception_is_sanitized_logged_with_correlation_id_and_no_raw_exception() -> (
+    None
+):
     logger = Logger()
 
     class ExplodingSnapshotService:

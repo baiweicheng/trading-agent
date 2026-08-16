@@ -169,9 +169,7 @@ def test_backtest_requires_verification_and_handle_then_persists_progress() -> N
     assert application.inspect_ids == ["snap-1"]
     assert application.run_calls == []
     run_button = [
-        call
-        for call in _calls(ui, "button")
-        if call[1][0] == "Run backtest"
+        call for call in _calls(ui, "button") if call[1][0] == "Run backtest"
     ][-1]
     assert run_button[2]["disabled"] is False
     assert "qrp.backtest.verified_snapshot_id" in ui.session_state
@@ -278,8 +276,9 @@ class RunsApplication:
         )
 
 
-def test_runs_inspection_is_immutable_and_artifact_access_is_explicit_and_bounded(
-) -> None:
+def test_runs_inspection_is_immutable_and_artifact_access_is_explicit_and_bounded() -> (
+    None
+):
     application = RunsApplication()
     ui = FakeStreamlit(clicked={"Inspect selected run"})
     redactor = Redactor(["literal-secret"])

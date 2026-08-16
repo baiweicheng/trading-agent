@@ -116,16 +116,10 @@ def _candidate_projection(candidate: DailyBarCandidate) -> dict[str, Any]:
             "close": _canonical_number(candidate.adjusted_close),
             "volume": _canonical_number(candidate.adjusted_volume),
         },
-        "execution_adjusted_open": _canonical_number(
-            candidate.execution_adjusted_open
-        ),
+        "execution_adjusted_open": _canonical_number(candidate.execution_adjusted_open),
         "sizing_adjusted_close": _canonical_number(candidate.sizing_adjusted_close),
-        "cumulative_price_factor": _canonical_number(
-            candidate.cumulative_price_factor
-        ),
-        "cumulative_split_factor": _canonical_number(
-            candidate.cumulative_split_factor
-        ),
+        "cumulative_price_factor": _canonical_number(candidate.cumulative_price_factor),
+        "cumulative_split_factor": _canonical_number(candidate.cumulative_split_factor),
         "policy_version": candidate.policy_version,
         "provider_record_checksum": candidate.raw_lineage.provider_record_checksum,
         "canonical_row_checksum": candidate.canonical_row_checksum,
@@ -140,9 +134,9 @@ def _quarantine_projection(record: QuarantineRecord) -> dict[str, Any]:
         "reason_codes": list(record.reason_codes),
         "policy_version": record.policy_version,
         "offending_values": {
-            str(key): _canonical_number(value) if isinstance(value, Decimal) else (
-                value.isoformat() if isinstance(value, date) else value
-            )
+            str(key): _canonical_number(value)
+            if isinstance(value, Decimal)
+            else (value.isoformat() if isinstance(value, date) else value)
             for key, value in record.offending_values.items()
         },
         "candidate_checksum": record.candidate_checksum,
@@ -168,7 +162,6 @@ def _assert_candidate_fields(
                 assert actual_row["adjusted"]["close"] == expected_value
             else:
                 assert actual_row[field] == expected_value
-
 
 
 def _assert_quarantine_fields(
@@ -220,6 +213,8 @@ def _normalization_case(
     )
     _assert_candidate_source_lineage(candidates, _records(case))
     return candidates, quarantines
+
+
 def test_action_fixture_declares_and_applies_causal_policy() -> None:
     fixture = _load_json(_ACTIONS_PATH)
     calendar = XNYSCalendar()
@@ -247,23 +242,33 @@ def test_action_fixture_declares_and_applies_causal_policy() -> None:
         record for record in records if record.provider_date <= prefix_end
     )
     prefix_candidates, prefix_quarantines = _normalization_case(
-        {**case, "records": [
-            {
-                "symbol": record.symbol,
-                "provider_date": record.provider_date.isoformat(),
-                "raw_bar": {
-                    name: _canonical_number(getattr(record.raw_bar, name))
-                    for name in ("open", "high", "low", "close", "adj_close", "volume")
-                },
-                "raw_action": {
-                    "dividend": _canonical_number(record.raw_action.dividend),
-                    "split_ratio": _canonical_number(record.raw_action.split_ratio),
-                    "provider_fields": dict(record.raw_action.provider_fields),
-                },
-                "provider_fields": dict(record.provider_fields),
-            }
-            for record in prefix_records
-        ]},
+        {
+            **case,
+            "records": [
+                {
+                    "symbol": record.symbol,
+                    "provider_date": record.provider_date.isoformat(),
+                    "raw_bar": {
+                        name: _canonical_number(getattr(record.raw_bar, name))
+                        for name in (
+                            "open",
+                            "high",
+                            "low",
+                            "close",
+                            "adj_close",
+                            "volume",
+                        )
+                    },
+                    "raw_action": {
+                        "dividend": _canonical_number(record.raw_action.dividend),
+                        "split_ratio": _canonical_number(record.raw_action.split_ratio),
+                        "provider_fields": dict(record.raw_action.provider_fields),
+                    },
+                    "provider_fields": dict(record.provider_fields),
+                }
+                for record in prefix_records
+            ],
+        },
         calendar,
     )
     assert not prefix_quarantines
@@ -291,6 +296,7 @@ def _expected_sessions(case: Mapping[str, Any]) -> dict[str, tuple[date, ...]]:
         str(symbol): tuple(date.fromisoformat(str(value)) for value in sessions)
         for symbol, sessions in case["expected_sessions"].items()
     }
+
 
 def _actual_duplicate_projection(output: Any) -> list[dict[str, Any]]:
     return [

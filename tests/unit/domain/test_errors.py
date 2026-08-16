@@ -8,12 +8,12 @@ from datetime import date, datetime
 import pytest
 
 from quant_research_platform.domain.errors import (
+    LIMITATION_DISCLOSURE_VERSION,
     ActionableError,
     DisclosureCarrier,
     Err,
     ErrorCategory,
     JobReason,
-    LIMITATION_DISCLOSURE_VERSION,
     LimitationDisclosure,
     Ok,
     ProviderFailureKind,

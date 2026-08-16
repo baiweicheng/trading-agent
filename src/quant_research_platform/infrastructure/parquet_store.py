@@ -29,23 +29,44 @@ import pyarrow.dataset as ds  # type: ignore[import-untyped]
 import pyarrow.parquet as pq  # type: ignore[import-untyped]
 
 from ..domain.manifests import ContentAddressedObjectRef, ObjectKind
-from ..domain.market import DailyBarCandidate, ProviderRecord, normalize_symbol
+from ..domain.market import (
+    DailyBarCandidate,
+    DataGap,
+    ProviderRecord,
+    QuarantineRecord,
+    ValidationReport,
+    normalize_symbol,
+)
 from .schemas import (
     DAILY_BAR_V1,
+    GAP_V1,
     PARQUET_WRITE_OPTIONS,
+    QUARANTINE_V1,
     RAW_V1,
     SCHEMAS,
+    VALIDATION_REPORT_V1,
     canonical_table,
     daily_bars_to_table,
+    gaps_to_table,
+    quarantines_to_table,
     raw_records_to_table,
     schema_for,
+    validation_reports_to_table,
 )
 
 SchemaRow: TypeAlias = Mapping[str, object]
 ParquetInput: TypeAlias = (
     pa.Table
     | pa.RecordBatchReader
-    | Iterable[SchemaRow | pa.RecordBatch | ProviderRecord | DailyBarCandidate]
+    | Iterable[
+        SchemaRow
+        | pa.RecordBatch
+        | DataGap
+        | DailyBarCandidate
+        | ProviderRecord
+        | QuarantineRecord
+        | ValidationReport
+    ]
 )
 DatasetFactory: TypeAlias = Callable[..., ds.Dataset]
 
@@ -53,6 +74,7 @@ DEFAULT_WRITE_CHUNK_SIZE: Final = 50_000
 MAX_WRITE_CHUNK_SIZE: Final = 100_000
 DEFAULT_SCAN_BATCH_SIZE: Final = 65_536
 PARQUET_MEDIA_TYPE: Final = "application/vnd.apache.parquet"
+_ALLOWED_CAS_NAMESPACES: Final = frozenset({"objects", "artifacts"})
 
 _PARTITION_COMPONENT_RE: Final = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -62,6 +84,15 @@ _PARTITION_COMPONENT_RE: Final = re.compile(r"^[A-Za-z0-9._-]+$")
 _PARTITION_SORT_FIELDS: Final[dict[str, tuple[str, ...]]] = {
     RAW_V1: ("provider_date", "provider_record_checksum"),
     DAILY_BAR_V1: ("session", "canonical_row_checksum"),
+    QUARANTINE_V1: (
+        "source_kind",
+        "symbol",
+        "session",
+        "reason_codes",
+        "candidate_checksum",
+    ),
+    GAP_V1: ("symbol", "expected_session", "reason"),
+    VALIDATION_REPORT_V1: ("report_checksum",),
 }
 
 
@@ -79,46 +110,73 @@ class ParquetScanError(ParquetStoreError):
 
 @dataclass(frozen=True, slots=True)
 class LogicalPartition:
-    """A deterministic raw or normalized physical partition identity.
+    """A deterministic physical partition identity for one canonical collection.
 
-    Raw records are isolated by provider/symbol/provider-date year.  Accepted
-    daily bars are isolated by symbol/session year.  The logical directory
-    excludes all staging paths and operation identifiers so it is safe to put
-    into a scientific manifest after a final CAS publication step.
+    Raw and normalized records use symbol/year partitions.  Quality collections
+    are intentionally global partitions: their rows may contain multiple
+    symbols or null symbols, so the collection itself is the stable partition
+    boundary.  Operational staging paths never participate in the identity.
     """
 
     object_kind: ObjectKind | str
     schema_version: str
-    symbol: str
-    session_year: int
+    symbol: str | None
+    session_year: int | None
     provider: str | None = None
 
     def __post_init__(self) -> None:
         try:
             kind = ObjectKind(self.object_kind)
         except ValueError as error:
-            raise ValueError(f"unsupported logical object kind: {self.object_kind!r}") from error
+            raise ValueError(
+                f"unsupported logical object kind: {self.object_kind!r}"
+            ) from error
         object.__setattr__(self, "object_kind", kind)
         schema_for(self.schema_version)
-        symbol = normalize_symbol(self.symbol)
-        object.__setattr__(self, "symbol", symbol)
-        if isinstance(self.session_year, bool) or not isinstance(self.session_year, int):
-            raise TypeError("session_year must be an integer")
-        if not 1 <= self.session_year <= 9999:
-            raise ValueError("session_year must be a valid calendar year")
+        if self.symbol is not None:
+            object.__setattr__(self, "symbol", normalize_symbol(self.symbol))
+        if self.session_year is not None:
+            if isinstance(self.session_year, bool) or not isinstance(
+                self.session_year, int
+            ):
+                raise TypeError("session_year must be an integer or None")
+            if not 1 <= self.session_year <= 9999:
+                raise ValueError("session_year must be a valid calendar year")
 
         if kind is ObjectKind.RAW:
             if self.schema_version != RAW_V1:
                 raise ValueError("raw partitions must use raw_v1")
+            if self.symbol is None or self.session_year is None:
+                raise ValueError("raw partitions require symbol and session_year")
             provider = _partition_component("provider", self.provider)
             object.__setattr__(self, "provider", provider)
         elif kind is ObjectKind.NORMALIZED:
             if self.schema_version != DAILY_BAR_V1:
                 raise ValueError("normalized partitions must use daily_bar_v1")
+            if self.symbol is None or self.session_year is None:
+                raise ValueError(
+                    "normalized partitions require symbol and session_year"
+                )
             if self.provider is not None:
                 raise ValueError("normalized partitions must not include a provider")
+        elif kind in {
+            ObjectKind.QUARANTINE,
+            ObjectKind.GAP,
+            ObjectKind.VALIDATION,
+        }:
+            expected_schema = {
+                ObjectKind.QUARANTINE: QUARANTINE_V1,
+                ObjectKind.GAP: GAP_V1,
+                ObjectKind.VALIDATION: VALIDATION_REPORT_V1,
+            }[kind]
+            if self.schema_version != expected_schema:
+                raise ValueError(f"{kind.value} partitions must use {expected_schema}")
+            if self.symbol is not None or self.session_year is not None:
+                raise ValueError(f"{kind.value} partitions are collection-level")
+            if self.provider is not None:
+                raise ValueError(f"{kind.value} partitions must not include a provider")
         else:
-            raise ValueError("this store writes only raw and normalized partitions")
+            raise ValueError(f"unsupported logical object kind: {kind.value}")
 
     @classmethod
     def raw(cls, *, provider: str, symbol: str, year: int) -> LogicalPartition:
@@ -141,24 +199,45 @@ class LogicalPartition:
             session_year=year,
         )
 
+    @classmethod
+    def auxiliary(
+        cls,
+        *,
+        object_kind: ObjectKind | str,
+        schema_version: str,
+    ) -> LogicalPartition:
+        """Construct the collection-level partition for a quality table."""
+        return cls(
+            object_kind=object_kind,
+            schema_version=schema_version,
+            symbol=None,
+            session_year=None,
+        )
+
     @property
     def relative_directory(self) -> PurePosixPath:
         """Return the immutable logical directory independent of local roots."""
         if self.object_kind is ObjectKind.RAW:
             assert self.provider is not None
+            assert self.symbol is not None
+            assert self.session_year is not None
             return PurePosixPath(
                 f"raw/provider={self.provider}/symbol={self.symbol}/year={self.session_year:04d}"
             )
-        return PurePosixPath(
-            f"normalized/symbol={self.symbol}/year={self.session_year:04d}"
-        )
+        if self.object_kind is ObjectKind.NORMALIZED:
+            assert self.symbol is not None
+            assert self.session_year is not None
+            return PurePosixPath(
+                f"normalized/symbol={self.symbol}/year={self.session_year:04d}"
+            )
+        return PurePosixPath(self.object_kind.value)
 
     def sort_key(self) -> tuple[str, str, int, str]:
         """Order partitions before finalization without using operational paths."""
         return (
             self.object_kind.value,
-            self.symbol,
-            self.session_year,
+            self.symbol or "",
+            self.session_year if self.session_year is not None else -1,
             self.provider or "",
         )
 
@@ -183,16 +262,27 @@ class StagedParquetObject:
             raise ValueError("path must name a Parquet file")
         object.__setattr__(self, "path", path)
         relative = PurePosixPath(self.relative_uri)
-        if relative.is_absolute() or ".." in relative.parts or str(relative) in {"", "."}:
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or str(relative) in {"", "."}
+        ):
             raise ValueError("relative_uri must be a non-escaping relative URI")
         expected_filename = f"sha256={self.checksum}.parquet"
         if relative.name != expected_filename:
             raise ValueError("relative_uri must use the final-byte checksum filename")
         if path.name != expected_filename:
             raise ValueError("path must use the final-byte checksum filename")
-        if not isinstance(self.checksum, str) or re.fullmatch(r"[0-9a-f]{64}", self.checksum) is None:
+        if (
+            not isinstance(self.checksum, str)
+            or re.fullmatch(r"[0-9a-f]{64}", self.checksum) is None
+        ):
             raise ValueError("checksum must be a lowercase SHA-256 digest")
-        for name, value in (("row_count", self.row_count), ("byte_size", self.byte_size), ("ordinal", self.ordinal)):
+        for name, value in (
+            ("row_count", self.row_count),
+            ("byte_size", self.byte_size),
+            ("ordinal", self.ordinal),
+        ):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"{name} must be a non-negative integer")
 
@@ -233,29 +323,52 @@ class ScanPredicate:
                 raise TypeError("symbols must be an immutable tuple or None")
             symbols = tuple(normalize_symbol(symbol) for symbol in self.symbols)
             if not symbols or len(set(symbols)) != len(symbols):
-                raise ValueError("symbols must be a non-empty tuple of distinct symbols")
+                raise ValueError(
+                    "symbols must be a non-empty tuple of distinct symbols"
+                )
             object.__setattr__(self, "symbols", symbols)
         if self.years is not None:
             if not isinstance(self.years, tuple):
                 raise TypeError("years must be an immutable tuple or None")
             years = tuple(sorted(set(self.years)))
-            if not years or any(isinstance(year, bool) or not isinstance(year, int) or not 1 <= year <= 9999 for year in years):
+            if not years or any(
+                isinstance(year, bool)
+                or not isinstance(year, int)
+                or not 1 <= year <= 9999
+                for year in years
+            ):
                 raise ValueError("years must contain valid distinct calendar years")
             object.__setattr__(self, "years", years)
         if self.sessions is not None:
             if not isinstance(self.sessions, tuple):
                 raise TypeError("sessions must be an immutable tuple or None")
-            sessions = tuple(sorted(set(_require_date("session", session) for session in self.sessions)))
+            sessions = tuple(
+                sorted(
+                    set(_require_date("session", session) for session in self.sessions)
+                )
+            )
             if not sessions:
                 raise ValueError("sessions must not be empty")
             object.__setattr__(self, "sessions", sessions)
         if self.session_start is not None:
-            object.__setattr__(self, "session_start", _require_date("session_start", self.session_start))
+            object.__setattr__(
+                self,
+                "session_start",
+                _require_date("session_start", self.session_start),
+            )
         if self.session_end is not None:
-            object.__setattr__(self, "session_end", _require_date("session_end", self.session_end))
-        if self.session_start is not None and self.session_end is not None and self.session_start > self.session_end:
+            object.__setattr__(
+                self, "session_end", _require_date("session_end", self.session_end)
+            )
+        if (
+            self.session_start is not None
+            and self.session_end is not None
+            and self.session_start > self.session_end
+        ):
             raise ValueError("session_start must not be after session_end")
-        if self.expression is not None and not isinstance(self.expression, ds.Expression):
+        if self.expression is not None and not isinstance(
+            self.expression, ds.Expression
+        ):
             raise TypeError("expression must be a pyarrow.dataset.Expression or None")
 
     @classmethod
@@ -305,17 +418,27 @@ class ParquetStore:
         write_chunk_size: int = DEFAULT_WRITE_CHUNK_SIZE,
         scan_batch_size: int = DEFAULT_SCAN_BATCH_SIZE,
         dataset_factory: DatasetFactory | None = None,
+        cas_namespace: str | None = None,
     ) -> None:
+        if cas_namespace is not None and cas_namespace not in _ALLOWED_CAS_NAMESPACES:
+            allowed = ", ".join(sorted(_ALLOWED_CAS_NAMESPACES))
+            raise ValueError(f"cas_namespace must be one of {allowed}, or None")
         self._root = Path(root).expanduser()
         self._write_chunk_size = _bounded_chunk_size(write_chunk_size)
         self._scan_batch_size = _bounded_scan_batch_size(scan_batch_size)
         self._dataset_factory = dataset_factory or cast(DatasetFactory, ds.dataset)
+        self._cas_namespace = cas_namespace
         self._last_scan_plan: ScanPlan | None = None
 
     @property
     def root(self) -> Path:
         """Return the local root without including it in scientific identities."""
         return self._root
+
+    @property
+    def cas_namespace(self) -> str | None:
+        """Return the optional FilesystemStore CAS collection prefix."""
+        return self._cas_namespace
 
     @property
     def write_chunk_size(self) -> int:
@@ -357,9 +480,61 @@ class ParquetStore:
             staging=staging,
         )
 
-    # Explicit aliases keep the collection role visible at use sites.
+    def write_quarantine(
+        self,
+        rows: ParquetInput,
+        *,
+        write_chunk_size: int | None = None,
+        staging: Path | str | None = None,
+    ) -> tuple[StagedParquetObject, ...]:
+        """Persist canonical quarantine decisions as a durable Parquet collection."""
+        return self._write_collection(
+            rows,
+            schema_name=QUARANTINE_V1,
+            write_chunk_size=write_chunk_size,
+            staging=staging,
+        )
+
+    def write_gaps(
+        self,
+        rows: ParquetInput,
+        *,
+        write_chunk_size: int | None = None,
+        staging: Path | str | None = None,
+    ) -> tuple[StagedParquetObject, ...]:
+        """Persist explicit missing-session facts as a durable Parquet collection."""
+        return self._write_collection(
+            rows,
+            schema_name=GAP_V1,
+            write_chunk_size=write_chunk_size,
+            staging=staging,
+        )
+
+    def write_validation_report(
+        self,
+        rows: ParquetInput,
+        *,
+        write_chunk_size: int | None = None,
+        staging: Path | str | None = None,
+    ) -> tuple[StagedParquetObject, ...]:
+        """Persist the canonical validation report as a durable Parquet collection."""
+        return self._write_collection(
+            rows,
+            schema_name=VALIDATION_REPORT_V1,
+            write_chunk_size=write_chunk_size,
+            staging=staging,
+        )
+
+    # Explicit aliases keep the application role names compatible with focused
+    # fakes and older composition roots.
     write_raw_collection = write_raw
     write_normalized_collection = write_normalized
+    write_quarantines = write_quarantine
+    write_quarantine_collection = write_quarantine
+    write_gap = write_gaps
+    write_gap_collection = write_gaps
+    write_validation_reports = write_validation_report
+    write_validation = write_validation_report
 
     def write_chunks(
         self,
@@ -379,7 +554,9 @@ class ParquetStore:
         if not isinstance(logical_partition, LogicalPartition):
             raise TypeError("logical_partition must be a LogicalPartition")
         if logical_partition.schema_version != schema_name:
-            raise ParquetWriteError("logical partition schema does not match the writer schema")
+            raise ParquetWriteError(
+                "logical partition schema does not match the writer schema"
+            )
         max_rows = _bounded_chunk_size(max_rows or self._write_chunk_size)
         output_root = self._output_root(staging)
         operation_root = self._operation_root(output_root)
@@ -444,14 +621,18 @@ class ParquetStore:
                 sessions=resolved_predicate.sessions,
                 session_start=resolved_predicate.session_start,
                 session_end=resolved_predicate.session_end,
-                batch_size=_bounded_scan_batch_size(batch_size or self._scan_batch_size),
+                batch_size=_bounded_scan_batch_size(
+                    batch_size or self._scan_batch_size
+                ),
                 has_expression=resolved_predicate.expression is not None,
             )
             return pa.RecordBatchReader.from_batches(projected_schema, ())
 
         filter_expression = _dataset_filter(schema_name, resolved_predicate)
         paths = [str(source.path) for source in filtered_sources]
-        requested_batch_size = _bounded_scan_batch_size(batch_size or self._scan_batch_size)
+        requested_batch_size = _bounded_scan_batch_size(
+            batch_size or self._scan_batch_size
+        )
         self._last_scan_plan = ScanPlan(
             columns=normalized_columns,
             source_count=len(paths),
@@ -475,7 +656,9 @@ class ParquetStore:
             )
             return scanner.to_reader()
         except (OSError, pa.ArrowException) as error:
-            raise ParquetScanError(f"cannot construct projected Parquet scan: {error}") from error
+            raise ParquetScanError(
+                f"cannot construct projected Parquet scan: {error}"
+            ) from error
 
     scan_batches = scan
 
@@ -498,7 +681,9 @@ class ParquetStore:
                 for row in table.to_pylist():
                     partition = _partition_for_row(schema_name, row)
                     by_partition.setdefault(partition, []).append(row)
-                for partition, partition_rows in sorted(by_partition.items(), key=lambda item: item[0].sort_key()):
+                for partition, partition_rows in sorted(
+                    by_partition.items(), key=lambda item: item[0].sort_key()
+                ):
                     fragment = canonical_table(schema_name, partition_rows)
                     paths_by_partition.setdefault(partition, []).append(
                         self._write_input_fragment(
@@ -567,7 +752,9 @@ class ParquetStore:
             / f"fragment-{sequence:08d}.parquet"
         )
         fragment_path.parent.mkdir(parents=True, exist_ok=True)
-        _write_pinned_parquet(table, fragment_path, row_group_size=max(1, table.num_rows))
+        _write_pinned_parquet(
+            table, fragment_path, row_group_size=max(1, table.num_rows)
+        )
         return fragment_path
 
     def _finalize_partition(
@@ -601,7 +788,9 @@ class ParquetStore:
             final_path = final_directory / final_name
             if final_path.exists():
                 if _sha256_file(final_path) != checksum:
-                    raise ParquetWriteError("existing Parquet checksum path contains different bytes")
+                    raise ParquetWriteError(
+                        "existing Parquet checksum path contains different bytes"
+                    )
                 temporary_path.unlink()
             else:
                 temporary_path.replace(final_path)
@@ -609,7 +798,9 @@ class ParquetStore:
                 StagedParquetObject(
                     partition=partition,
                     path=final_path,
-                    relative_uri=(partition.relative_directory / final_name).as_posix(),
+                    relative_uri=self._manifest_relative_uri(
+                        partition.relative_directory / final_name
+                    ),
                     checksum=checksum,
                     row_count=table.num_rows,
                     byte_size=byte_size,
@@ -640,7 +831,9 @@ class ParquetStore:
         temp_directory.mkdir(parents=True, exist_ok=True)
         connection = duckdb.connect(database=":memory:")
         try:
-            connection.execute(f"SET temp_directory = {_quote_sql_literal(str(temp_directory))}")
+            connection.execute(
+                f"SET temp_directory = {_quote_sql_literal(str(temp_directory))}"
+            )
             connection.execute("SET threads TO 1")
             reader = connection.execute(sql).to_arrow_reader(batch_size=max_rows)
             pending: list[pa.RecordBatch] = []
@@ -662,9 +855,21 @@ class ParquetStore:
         except Exception as error:
             if isinstance(error, ParquetStoreError):
                 raise
-            raise ParquetWriteError(f"external sort or canonical Parquet write failed: {error}") from error
+            raise ParquetWriteError(
+                f"external sort or canonical Parquet write failed: {error}"
+            ) from error
         finally:
             connection.close()
+
+    def _manifest_relative_uri(self, relative_path: PurePosixPath) -> str:
+        """Return a FilesystemStore-addressable URI for a local collection path."""
+        if relative_path.is_absolute() or ".." in relative_path.parts:
+            raise ParquetWriteError(
+                "generated Parquet URI must be relative and non-escaping"
+            )
+        if self._cas_namespace is None:
+            return relative_path.as_posix()
+        return (PurePosixPath(self._cas_namespace) / relative_path).as_posix()
 
     def _output_root(self, staging: Path | str | None) -> Path:
         root = Path(staging).expanduser() if staging is not None else self._root
@@ -687,8 +892,12 @@ class ParquetStore:
             raise ParquetScanError("scan requires at least one Parquet reference")
         sources = tuple(_scan_source(ref, self._root) for ref in refs)
         if any(not source.path.is_file() for source in sources):
-            missing = next(source.path for source in sources if not source.path.is_file())
-            raise ParquetScanError(f"referenced Parquet object does not exist: {missing}")
+            missing = next(
+                source.path for source in sources if not source.path.is_file()
+            )
+            raise ParquetScanError(
+                f"referenced Parquet object does not exist: {missing}"
+            )
         return tuple(sorted(sources, key=_ScanSource.sort_key))
 
 
@@ -701,18 +910,30 @@ class _ScanSource:
 
     def sort_key(self) -> tuple[str, str, int, int, str]:
         if self.partition is None:
-            return ("", "", -1, self.ordinal if self.ordinal is not None else -1, str(self.path))
+            return (
+                "",
+                "",
+                -1,
+                self.ordinal if self.ordinal is not None else -1,
+                str(self.path),
+            )
         return (
             self.partition.object_kind.value,
-            self.partition.symbol,
-            self.partition.session_year,
+            self.partition.symbol or "",
+            self.partition.session_year
+            if self.partition.session_year is not None
+            else -1,
             self.ordinal if self.ordinal is not None else -1,
             str(self.path),
         )
 
 
 def _partition_component(name: str, value: str | None) -> str:
-    if not isinstance(value, str) or not value or _PARTITION_COMPONENT_RE.fullmatch(value) is None:
+    if (
+        not isinstance(value, str)
+        or not value
+        or _PARTITION_COMPONENT_RE.fullmatch(value) is None
+    ):
         raise ValueError(f"{name} must use a safe non-empty partition component")
     return value
 
@@ -724,14 +945,26 @@ def _require_date(name: str, value: date) -> date:
 
 
 def _bounded_chunk_size(value: int) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_WRITE_CHUNK_SIZE:
-        raise ValueError(f"write_chunk_size must be between 1 and {MAX_WRITE_CHUNK_SIZE}")
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 1 <= value <= MAX_WRITE_CHUNK_SIZE
+    ):
+        raise ValueError(
+            f"write_chunk_size must be between 1 and {MAX_WRITE_CHUNK_SIZE}"
+        )
     return value
 
 
 def _bounded_scan_batch_size(value: int) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_WRITE_CHUNK_SIZE:
-        raise ValueError(f"scan batch_size must be between 1 and {MAX_WRITE_CHUNK_SIZE}")
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 1 <= value <= MAX_WRITE_CHUNK_SIZE
+    ):
+        raise ValueError(
+            f"scan batch_size must be between 1 and {MAX_WRITE_CHUNK_SIZE}"
+        )
     return value
 
 
@@ -748,7 +981,9 @@ def _resolve_schema(schema: pa.Schema | str) -> tuple[str, pa.Schema]:
 
 def _validate_input_schema(schema: pa.Schema, expected: pa.Schema) -> None:
     if not schema.equals(expected, check_metadata=True):
-        raise ParquetWriteError("input table schema must exactly match the canonical schema")
+        raise ParquetWriteError(
+            "input table schema must exactly match the canonical schema"
+        )
 
 
 def _iter_canonical_tables(
@@ -771,14 +1006,18 @@ def _iter_canonical_tables(
         return
 
     if isinstance(rows, (str, bytes)) or not isinstance(rows, Iterable):
-        raise TypeError("rows must be an Arrow table/reader or iterable of canonical rows")
+        raise TypeError(
+            "rows must be an Arrow table/reader or iterable of canonical rows"
+        )
     pending: list[SchemaRow] = []
     for item in rows:
         if isinstance(item, pa.RecordBatch):
             if pending:
                 yield canonical_table(schema_name, pending)
                 pending = []
-            yield from _canonicalize_record_batch(item, schema_name, max_rows, expected_schema=schema)
+            yield from _canonicalize_record_batch(
+                item, schema_name, max_rows, expected_schema=schema
+            )
             continue
         pending.append(_input_row(item, schema_name))
         if len(pending) == max_rows:
@@ -810,10 +1049,33 @@ def _input_row(item: object, schema_name: str) -> SchemaRow:
         return cast(SchemaRow, raw_records_to_table((item,)).to_pylist()[0])
     if schema_name == DAILY_BAR_V1 and isinstance(item, DailyBarCandidate):
         return cast(SchemaRow, daily_bars_to_table((item,)).to_pylist()[0])
-    raise TypeError(f"{schema_name} rows must be mappings or their matching domain records")
+    if schema_name == QUARANTINE_V1 and isinstance(item, QuarantineRecord):
+        return cast(SchemaRow, quarantines_to_table((item,)).to_pylist()[0])
+    if schema_name == GAP_V1 and isinstance(item, DataGap):
+        return cast(SchemaRow, gaps_to_table((item,)).to_pylist()[0])
+    if schema_name == VALIDATION_REPORT_V1 and isinstance(item, ValidationReport):
+        return cast(SchemaRow, validation_reports_to_table((item,)).to_pylist()[0])
+    raise TypeError(
+        f"{schema_name} rows must be mappings or their matching domain records"
+    )
 
 
 def _partition_for_row(schema_name: str, row: Mapping[str, object]) -> LogicalPartition:
+    if schema_name == QUARANTINE_V1:
+        return LogicalPartition.auxiliary(
+            object_kind=ObjectKind.QUARANTINE,
+            schema_version=QUARANTINE_V1,
+        )
+    if schema_name == GAP_V1:
+        return LogicalPartition.auxiliary(
+            object_kind=ObjectKind.GAP,
+            schema_version=GAP_V1,
+        )
+    if schema_name == VALIDATION_REPORT_V1:
+        return LogicalPartition.auxiliary(
+            object_kind=ObjectKind.VALIDATION,
+            schema_version=VALIDATION_REPORT_V1,
+        )
     try:
         symbol = cast(str, row["symbol"])
         if schema_name == RAW_V1:
@@ -827,7 +1089,9 @@ def _partition_for_row(schema_name: str, row: Mapping[str, object]) -> LogicalPa
             session = cast(date, row["session"])
             return LogicalPartition.normalized(symbol=symbol, year=session.year)
     except (KeyError, AttributeError, TypeError, ValueError) as error:
-        raise ParquetWriteError(f"cannot derive a logical partition from {schema_name} row") from error
+        raise ParquetWriteError(
+            f"cannot derive a logical partition from {schema_name} row"
+        ) from error
     raise ParquetWriteError(f"unsupported partitioned schema: {schema_name}")
 
 
@@ -835,15 +1099,24 @@ def _write_pinned_parquet(table: pa.Table, path: Path, *, row_group_size: int) -
     if table.num_rows <= 0:
         raise ParquetWriteError("Parquet slices must not be empty")
     path.parent.mkdir(parents=True, exist_ok=True)
+    options = dict(PARQUET_WRITE_OPTIONS)
+    # PyArrow's compliant nested encoding renames list children from the
+    # registered ``item`` field to ``element``.  Disable it for canonical
+    # schemas containing lists so the bytes round-trip to the exact Arrow
+    # schema declared by the platform.
+    if any(pa.types.is_list(field.type) for field in table.schema):
+        options["use_compliant_nested_type"] = False
     try:
         pq.write_table(
             table,
             path,
             row_group_size=row_group_size,
-            **dict(PARQUET_WRITE_OPTIONS),
+            **options,
         )
     except (OSError, pa.ArrowException) as error:
-        raise ParquetWriteError(f"cannot write canonical Parquet bytes: {error}") from error
+        raise ParquetWriteError(
+            f"cannot write canonical Parquet bytes: {error}"
+        ) from error
 
 
 def _sha256_file(path: Path) -> str:
@@ -871,7 +1144,9 @@ def _batch_with_schema(batch: pa.RecordBatch, schema: pa.Schema) -> pa.RecordBat
     return table.to_batches()[0]
 
 
-def _table_from_batches(batches: Sequence[pa.RecordBatch], schema: pa.Schema) -> pa.Table:
+def _table_from_batches(
+    batches: Sequence[pa.RecordBatch], schema: pa.Schema
+) -> pa.Table:
     table = pa.Table.from_batches(batches)
     physical_schema = schema.remove_metadata()
     if not table.schema.remove_metadata().equals(physical_schema):
@@ -940,7 +1215,9 @@ def _intersect_optional(
         return first
     intersection = tuple(item for item in first if item in set(second))
     if not intersection:
-        raise ParquetScanError("combined scan predicates have no matching partition values")
+        raise ParquetScanError(
+            "combined scan predicates have no matching partition values"
+        )
     return intersection
 
 
@@ -960,6 +1237,24 @@ def _min_optional_date(first: date | None, second: date | None) -> date | None:
     return min(first, second)
 
 
+def _local_ref_path(root: Path, relative_uri: str) -> Path:
+    """Resolve a manifest URI before or after explicit CAS promotion.
+
+    ParquetStore writes collection-relative files first.  FilesystemStore then
+    atomically moves those same bytes below ``objects`` or ``artifacts``.  A
+    scan therefore prefers the published URI and falls back to the local
+    collection path while a source is still staged.
+    """
+    relative = PurePosixPath(relative_uri)
+    candidates = [root / Path(relative)]
+    if relative.parts and relative.parts[0] in _ALLOWED_CAS_NAMESPACES:
+        candidates.append(root / Path(*relative.parts[1:]))
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
 def _scan_source(
     ref: StagedParquetObject | ContentAddressedObjectRef | Path | str,
     root: Path,
@@ -974,7 +1269,7 @@ def _scan_source(
     if isinstance(ref, ContentAddressedObjectRef):
         partition = _partition_from_ref(ref)
         return _ScanSource(
-            path=root / Path(ref.relative_uri),
+            path=_local_ref_path(root, ref.relative_uri),
             schema_name=ref.schema_version,
             partition=partition,
             ordinal=None,
@@ -982,7 +1277,9 @@ def _scan_source(
     if isinstance(ref, (Path, str)):
         path = Path(ref)
         schema_name = _schema_name_from_file(path)
-        return _ScanSource(path=path, schema_name=schema_name, partition=None, ordinal=None)
+        return _ScanSource(
+            path=path, schema_name=schema_name, partition=None, ordinal=None
+        )
     raise TypeError("Parquet scan refs must be staged objects, manifest refs, or paths")
 
 
@@ -998,6 +1295,15 @@ def _partition_from_ref(ref: ContentAddressedObjectRef) -> LogicalPartition | No
         if ref.symbol is None or ref.session_year is None:
             return None
         return LogicalPartition.normalized(symbol=ref.symbol, year=ref.session_year)
+    if ref.object_kind in {
+        ObjectKind.QUARANTINE,
+        ObjectKind.GAP,
+        ObjectKind.VALIDATION,
+    }:
+        return LogicalPartition.auxiliary(
+            object_kind=ref.object_kind,
+            schema_version=ref.schema_version,
+        )
     return None
 
 
@@ -1005,14 +1311,18 @@ def _schema_name_from_file(path: Path) -> str:
     try:
         schema = pq.ParquetFile(path).schema_arrow
     except (OSError, pa.ArrowException) as error:
-        raise ParquetScanError(f"cannot inspect Parquet schema at {path}: {error}") from error
+        raise ParquetScanError(
+            f"cannot inspect Parquet schema at {path}: {error}"
+        ) from error
     for schema_name, candidate in SCHEMAS.items():
         if schema.equals(candidate, check_metadata=True):
             return schema_name
     raise ParquetScanError("Parquet file does not use a registered canonical schema")
 
 
-def _resolve_schema_from_sources(sources: Sequence[_ScanSource]) -> tuple[str, pa.Schema]:
+def _resolve_schema_from_sources(
+    sources: Sequence[_ScanSource],
+) -> tuple[str, pa.Schema]:
     schema_names = {source.schema_name for source in sources}
     if len(schema_names) != 1:
         raise ParquetScanError("a scan must not combine different schema versions")
@@ -1028,9 +1338,17 @@ def _filter_sources_for_partitions(
     for source in sources:
         partition = source.partition
         if partition is not None:
-            if predicate.symbols is not None and partition.symbol not in predicate.symbols:
+            if (
+                predicate.symbols is not None
+                and partition.symbol is not None
+                and partition.symbol not in predicate.symbols
+            ):
                 continue
-            if predicate.years is not None and partition.session_year not in predicate.years:
+            if (
+                predicate.years is not None
+                and partition.session_year is not None
+                and partition.session_year not in predicate.years
+            ):
                 continue
         selected.append(source)
     return tuple(selected)
@@ -1038,22 +1356,29 @@ def _filter_sources_for_partitions(
 
 def _dataset_filter(schema_name: str, predicate: ScanPredicate) -> ds.Expression | None:
     expressions: list[ds.Expression] = []
-    if predicate.symbols is not None:
+    schema = schema_for(schema_name)
+    if predicate.symbols is not None and "symbol" in schema.names:
         expressions.append(ds.field("symbol").isin(list(predicate.symbols)))
-    session_column = "provider_date" if schema_name == RAW_V1 else "session"
-    if predicate.years is not None:
-        year_terms = [
-            (ds.field(session_column) >= date(year, 1, 1))
-            & (ds.field(session_column) <= date(year, 12, 31))
-            for year in predicate.years
-        ]
-        expressions.append(_or_all(year_terms))
-    if predicate.sessions is not None:
-        expressions.append(ds.field(session_column).isin(list(predicate.sessions)))
-    if predicate.session_start is not None:
-        expressions.append(ds.field(session_column) >= predicate.session_start)
-    if predicate.session_end is not None:
-        expressions.append(ds.field(session_column) <= predicate.session_end)
+    session_column = {
+        RAW_V1: "provider_date",
+        DAILY_BAR_V1: "session",
+        QUARANTINE_V1: "session",
+        GAP_V1: "expected_session",
+    }.get(schema_name)
+    if session_column is not None and session_column in schema.names:
+        if predicate.years is not None:
+            year_terms = [
+                (ds.field(session_column) >= date(year, 1, 1))
+                & (ds.field(session_column) <= date(year, 12, 31))
+                for year in predicate.years
+            ]
+            expressions.append(_or_all(year_terms))
+        if predicate.sessions is not None:
+            expressions.append(ds.field(session_column).isin(list(predicate.sessions)))
+        if predicate.session_start is not None:
+            expressions.append(ds.field(session_column) >= predicate.session_start)
+        if predicate.session_end is not None:
+            expressions.append(ds.field(session_column) <= predicate.session_end)
     if predicate.expression is not None:
         expressions.append(predicate.expression)
     if not expressions:

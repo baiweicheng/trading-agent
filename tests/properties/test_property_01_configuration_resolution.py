@@ -9,16 +9,15 @@ from datetime import date
 from decimal import Decimal
 from io import StringIO
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from ruamel.yaml import YAML
 
 from quant_research_platform.config import loader as configuration_loader
 from quant_research_platform.config.loader import ConfigurationManager
 from quant_research_platform.domain.errors import Err, ErrorCategory, Ok, Result
-
 
 LeafPath = tuple[str, ...]
 
@@ -404,9 +403,9 @@ def _reference_normalize(
         ("paths", "artifact_root"): (
             project_root / str(paths["artifact_root"])
         ).resolve(strict=False),
-        ("paths", "metadata_db"): (
-            project_root / str(paths["metadata_db"])
-        ).resolve(strict=False),
+        ("paths", "metadata_db"): (project_root / str(paths["metadata_db"])).resolve(
+            strict=False
+        ),
         ("paths", "mlflow_db"): (project_root / str(paths["mlflow_db"])).resolve(
             strict=False
         ),
@@ -420,9 +419,7 @@ def _reference_normalize(
         ("data", "requested_range", "start"): date.fromisoformat(
             str(range_raw["start"])
         ),
-        ("data", "requested_range", "end"): date.fromisoformat(
-            str(range_raw["end"])
-        ),
+        ("data", "requested_range", "end"): date.fromisoformat(str(range_raw["end"])),
         ("data", "benchmark"): str(data["benchmark"]),
         ("data", "provider"): str(data["provider"]),
         ("data", "batch_size"): int(str(data["batch_size"])),
@@ -444,16 +441,10 @@ def _reference_normalize(
         ("execution", "initial_equity_usd"): Decimal(
             str(execution["initial_equity_usd"])
         ),
-        ("execution", "commission_bps"): Decimal(
-            str(execution["commission_bps"])
-        ),
-        ("execution", "slippage_bps"): Decimal(
-            str(execution["slippage_bps"])
-        ),
+        ("execution", "commission_bps"): Decimal(str(execution["commission_bps"])),
+        ("execution", "slippage_bps"): Decimal(str(execution["slippage_bps"])),
         ("ui", "page_size"): int(str(ui["page_size"])),
-        ("runtime", "deterministic_seed"): int(
-            str(runtime["deterministic_seed"])
-        ),
+        ("runtime", "deterministic_seed"): int(str(runtime["deterministic_seed"])),
     }
     return normalized
 
@@ -523,7 +514,9 @@ def _expected_errors(case: ConfigurationCase) -> list[tuple[str, ErrorCategory]]
     if case.mode == "path":
         expected.append(("paths.data_root", ErrorCategory.CONFIGURATION_INVALID_VALUE))
     if case.mode == "missing":
-        expected.append(("data.requested_range", ErrorCategory.CONFIGURATION_INVALID_VALUE))
+        expected.append(
+            ("data.requested_range", ErrorCategory.CONFIGURATION_INVALID_VALUE)
+        )
     if case.unknown_suffix is not None:
         expected.extend(
             (
@@ -563,7 +556,9 @@ def configuration_cases(draw: st.DrawFn) -> ConfigurationCase:
 
     mode = draw(st.sampled_from(("valid", "schema", "path", "missing")))
     available_leaves = tuple(
-        leaf for leaf in LEAVES if mode != "missing" or leaf.path not in DATE_RANGE_PATHS
+        leaf
+        for leaf in LEAVES
+        if mode != "missing" or leaf.path not in DATE_RANGE_PATHS
     )
     precedence_leaves = tuple(
         leaf
@@ -581,9 +576,7 @@ def configuration_cases(draw: st.DrawFn) -> ConfigurationCase:
     shared_leaf = draw(st.sampled_from(precedence_leaves))
     _assign_leaf(defaults, shared_leaf.path, draw(_safe_value_strategy(shared_leaf)))
     yaml_leaf_values[shared_leaf.path] = draw(_safe_value_strategy(shared_leaf))
-    environment_leaf_values[shared_leaf.path] = draw(
-        _safe_value_strategy(shared_leaf)
-    )
+    environment_leaf_values[shared_leaf.path] = draw(_safe_value_strategy(shared_leaf))
 
     # Always place independent siblings in different sources. This detects a
     # shallow merge that would drop a lower-precedence sibling mapping.
@@ -701,7 +694,10 @@ def test_leafwise_configuration_resolution_and_validation_gate(
             for error in result.errors:
                 if error.field_path in invalid_schema_paths:
                     assert "Accepted type:" in error.message
-                if error.field_path == "data.requested_range" and case.mode == "missing":
+                if (
+                    error.field_path == "data.requested_range"
+                    and case.mode == "missing"
+                ):
                     assert "missing" in error.message
                 if error.field_path == "paths.data_root" and case.mode == "path":
                     assert "Project_Root boundary" in error.message
@@ -716,9 +712,7 @@ def test_leafwise_configuration_resolution_and_validation_gate(
         reference_merged = _right_biased_merge(
             case.defaults, _leaf_map(case.yaml_leaf_values)
         )
-        reference_merged = _right_biased_merge(
-            reference_merged, reference_environment
-        )
+        reference_merged = _right_biased_merge(reference_merged, reference_environment)
         assert _actual_values(observed_configs[0]) == _reference_normalize(
             reference_merged, project_root
         )

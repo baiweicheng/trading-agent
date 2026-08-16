@@ -20,17 +20,16 @@ class ProjectRootBoundaryError(ValueError):
             detail = f"no {PYPROJECT_FILENAME} ancestor was found"
         else:
             rendered = ", ".join(str(boundary) for boundary in boundaries)
-            detail = (
-                f"multiple {PYPROJECT_FILENAME} ancestors were found "
-                f"({rendered})"
-            )
+            detail = f"multiple {PYPROJECT_FILENAME} ancestors were found ({rendered})"
         super().__init__(f"Project-root boundary for {anchor} is ambiguous: {detail}.")
 
 
 class RelativePathEscapeError(ValueError):
     """Raised when a relative configured path resolves outside the project root."""
 
-    def __init__(self, field_path: str, configured_path: Path, project_root: Path) -> None:
+    def __init__(
+        self, field_path: str, configured_path: Path, project_root: Path
+    ) -> None:
         self.field_path = field_path
         self.configured_path = configured_path
         self.project_root = project_root

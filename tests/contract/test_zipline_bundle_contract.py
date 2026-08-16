@@ -79,9 +79,7 @@ class _FixtureSource:
         symbols = getattr(predicate, "symbols", None)
         self.calls.append((normalized_columns, tuple(symbols or ()), predicate))
         selected = [
-            row
-            for row in self.rows
-            if symbols is None or row["symbol"] in symbols
+            row for row in self.rows if symbols is None or row["symbol"] in symbols
         ]
         selected.sort(key=lambda row: (str(row["symbol"]), row["session"]))
         return tuple(
@@ -121,9 +119,7 @@ class _FixtureWriter:
         calendar: object,
     ) -> None:
         self.scan_calls_before_daily_rows = len(self.source.calls)
-        materialized_daily_rows = tuple(
-            (sid, tuple(rows)) for sid, rows in daily_rows
-        )
+        materialized_daily_rows = tuple((sid, tuple(rows)) for sid, rows in daily_rows)
         self.calls.append(
             _WriterCall(
                 assets=tuple(assets),
@@ -277,9 +273,10 @@ def test_bundle_projection_is_raw_lazy_daily_and_exactly_snapshot_selected(
     assert locator.adapter_version == ADAPTER_VERSION
     assert locator.bundle_name == f"qrp_{manifest.snapshot_id}_{ADAPTER_VERSION}"
     assert locator.bundle_name != "latest"
-    assert locator.cache_path == (
-        tmp_path / "bundles" / manifest.snapshot_id / ADAPTER_VERSION
-    ).resolve()
+    assert (
+        locator.cache_path
+        == (tmp_path / "bundles" / manifest.snapshot_id / ADAPTER_VERSION).resolve()
+    )
     assert len(writer.calls) == 1
 
     call = writer.calls[0]
@@ -312,7 +309,8 @@ def test_bundle_projection_is_raw_lazy_daily_and_exactly_snapshot_selected(
     daily_columns = [
         columns
         for columns, _, _ in source.calls
-        if columns == (
+        if columns
+        == (
             "symbol",
             "session",
             "raw_open",

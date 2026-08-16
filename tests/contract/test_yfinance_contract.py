@@ -41,9 +41,7 @@ def _adapter(download: Callable[..., object]) -> YFinanceAdapter:
 
 
 def _single_symbol_frame(case: dict[str, Any]) -> pd.DataFrame:
-    frame = pd.DataFrame(
-        case["columns"], index=pd.to_datetime(case["index"])
-    )
+    frame = pd.DataFrame(case["columns"], index=pd.to_datetime(case["index"]))
     frame.attrs.update(case["attrs"])
     return frame
 
@@ -93,18 +91,17 @@ def test_yfinance_call_options_and_single_symbol_actions_match_golden() -> None:
 
     second_record = outcome.records[1]
     additional = second_record.provider_fields["additional_fields"]
-    assert additional[case["expected_additional_field"]["name"]] == case[
-        "expected_additional_field"
-    ]["value"]
+    assert (
+        additional[case["expected_additional_field"]["name"]]
+        == case["expected_additional_field"]["value"]
+    )
     assert second_record.provider_fields["frame_metadata"] == case["attrs"]
 
 
 def test_yfinance_multi_symbol_frame_preserves_partial_outcomes() -> None:
     case = _golden()["multi_symbol_partial"]
 
-    result = _adapter(lambda **_: _multi_symbol_frame(case)).fetch_daily(
-        _request(case)
-    )
+    result = _adapter(lambda **_: _multi_symbol_frame(case)).fetch_daily(_request(case))
 
     assert result.status == case["expected_status"]
     actual_outcomes = [
@@ -124,8 +121,7 @@ def test_yfinance_multi_symbol_frame_preserves_partial_outcomes() -> None:
     ]
     assert actual_outcomes == case["expected_outcomes"]
     actual_dates = [
-        record.provider_date.isoformat()
-        for record in result.outcomes[0].records
+        record.provider_date.isoformat() for record in result.outcomes[0].records
     ]
     assert actual_dates == [
         "2024-01-02",
@@ -143,6 +139,7 @@ def test_yfinance_transport_exceptions_map_to_reviewed_failure_outcomes() -> Non
     request = _request(_golden()["single_symbol_actions"])
 
     for case in _golden()["exception_mapping"]:
+
         def download(
             *, _status_code: int = int(case["status_code"]), **_: object
         ) -> object:

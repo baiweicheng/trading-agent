@@ -23,15 +23,11 @@ from ..application.evaluation import EvaluationService
 from ..application.ingestion import DataIngestionService, IngestionRequest
 from ..application.inspection import InspectionService
 from ..application.jobs import SynchronousJobManager
-from ..application.services import (
-    ConfigurationHandle,
-    Ok,
-    ResearchApplication,
-    RunQuery,
-)
+from ..application.services import ConfigurationHandle, ResearchApplication, RunQuery
 from ..application.snapshots import SnapshotManager, SnapshotQuery
 from ..config.loader import ENVIRONMENT_FIELD_PATHS, ConfigurationManager
 from ..config.serializer import Redactor
+from ..domain.errors import Ok
 from .components import (
     render_actionable_errors,
     render_limitation_disclosure,
@@ -86,6 +82,8 @@ def build_application(project_root: Path | str | None = None) -> ResearchApplica
     from ..infrastructure.logging import StructuredJsonlLogger
     from ..infrastructure.mlflow_tracker import LocalMlflowTracker
     from ..infrastructure.parquet_store import ParquetStore
+    from ..infrastructure.run_manifest import RunManifestPublisher
+    from ..infrastructure.snapshot_history import SnapshotParquetHistoryReader
     from ..infrastructure.xnys_calendar import XNYSCalendar
     from ..infrastructure.yfinance_provider import YFinanceAdapter
     from ..infrastructure.zipline_bundle import ZiplineBundleAdapter
@@ -100,8 +98,14 @@ def build_application(project_root: Path | str | None = None) -> ResearchApplica
     redactor = Redactor()
     configuration_manager = ConfigurationManager(project_anchor=root)
     metadata = DuckDBMetadataStore(metadata_path)
-    parquet = ParquetStore(data_root)
+    parquet = ParquetStore(data_root, cas_namespace="objects")
+    history_reader = SnapshotParquetHistoryReader(parquet)
     filesystem = FilesystemStore(data_root, metadata=metadata, redactor=redactor)
+    manifest_publisher = RunManifestPublisher(
+        filesystem,
+        metadata_store=metadata,
+        project_root=root,
+    )
     logger = StructuredJsonlLogger(log_path, redactor=redactor)
     jobs = SynchronousJobManager(metadata, logger, redactor=redactor)
     calendar = XNYSCalendar()
@@ -140,6 +144,7 @@ def build_application(project_root: Path | str | None = None) -> ResearchApplica
     )
     engine = ZiplineBacktestEngine(
         snapshot_manager=snapshot_manager,
+        snapshot_reader=history_reader,
         calendar=calendar,
     )
     backtest = BacktestService(
@@ -148,6 +153,7 @@ def build_application(project_root: Path | str | None = None) -> ResearchApplica
         bundle_adapter=bundle,
         engine=engine,
         evaluator=evaluation,
+        manifest_publisher=manifest_publisher,
     )
     comparison = ComparisonService(
         metadata_store=cast(Any, metadata),
@@ -614,8 +620,7 @@ def render_configure_ingest(
             _call(
                 ui,
                 "caption",
-                "Explicit mapped environment overrides in effect: "
-                + ", ".join(mapped),
+                "Explicit mapped environment overrides in effect: " + ", ".join(mapped),
             )
         else:
             _call(
@@ -666,8 +671,7 @@ def render_configure_ingest(
             _call(
                 ui,
                 "warning",
-                "The ingestion did not replace previously published snapshots "
-                "or runs.",
+                "The ingestion did not replace previously published snapshots or runs.",
             )
 
     progress_view = _get_state(state, _STATE_PROGRESS)

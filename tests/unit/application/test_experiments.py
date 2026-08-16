@@ -13,9 +13,13 @@ from quant_research_platform.application.experiments import (
     RunHandle,
     RunInputs,
 )
-from quant_research_platform.domain.errors import Err, ErrorCategory, LimitationDisclosure, Ok
+from quant_research_platform.domain.errors import (
+    Err,
+    ErrorCategory,
+    LimitationDisclosure,
+    Ok,
+)
 from quant_research_platform.domain.execution import RunState
-
 
 NOW = datetime(2024, 1, 10, 12, tzinfo=UTC)
 SNAPSHOT = "snap_" + "a" * 64
@@ -87,11 +91,15 @@ class FakeTracker:
         del result
         self.finalized.append((run.run_id, RunState.SUCCEEDED))
         self.metadata.runs[run.run_id].state = RunState.SUCCEEDED
-        links = (SimpleNamespace(checksum=ARTIFACT_CHECKSUM, role="equity", scientific=True),)
+        links = (
+            SimpleNamespace(checksum=ARTIFACT_CHECKSUM, role="equity", scientific=True),
+        )
         self.metadata.links[run.run_id] = links
         return RunHandle(run.run_id, run.mlflow_run_id, RunState.SUCCEEDED)
 
-    def finalize_failure(self, run: RunHandle, errors: object, diagnostics: object = ()) -> RunHandle:
+    def finalize_failure(
+        self, run: RunHandle, errors: object, diagnostics: object = ()
+    ) -> RunHandle:
         assert tuple(errors)
         del diagnostics
         self.finalized.append((run.run_id, RunState.FAILED))
@@ -170,13 +178,16 @@ def test_success_publishes_artifact_and_terminal_replay_rejects_conflict() -> No
 
     first = tracker.succeed(RUN_ONE, _result())
     replay = tracker.succeed(RUN_ONE, _result())
-    conflicting = tracker.succeed(RUN_ONE, SimpleNamespace(
-        snapshot_id=SNAPSHOT,
-        manifest_checksum="d" * 64,
-        manifest_uri="runs/example/other.json",
-        limitation_disclosure=LimitationDisclosure.current(),
-        artifacts=(),
-    ))
+    conflicting = tracker.succeed(
+        RUN_ONE,
+        SimpleNamespace(
+            snapshot_id=SNAPSHOT,
+            manifest_checksum="d" * 64,
+            manifest_uri="runs/example/other.json",
+            limitation_disclosure=LimitationDisclosure.current(),
+            artifacts=(),
+        ),
+    )
 
     assert isinstance(first, Ok)
     assert first.value.state is RunState.SUCCEEDED

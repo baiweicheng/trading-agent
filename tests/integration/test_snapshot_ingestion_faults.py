@@ -8,11 +8,11 @@ that Phase 1 value, but it never imports or calls the Yahoo Finance adapter.
 from __future__ import annotations
 
 import shutil
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence
 from uuid import UUID
 
 import pytest
@@ -86,7 +86,6 @@ from quant_research_platform.infrastructure.parquet_store import (
     StagedParquetObject,
 )
 
-
 SESSIONS = tuple(date(2024, 1, day) for day in (2, 3, 4, 5))
 PARENT_RANGE = DateRange(SESSIONS[0], SESSIONS[1])
 EXTENDED_RANGE = DateRange(SESSIONS[0], SESSIONS[-1])
@@ -140,9 +139,7 @@ class FixtureCalendar:
         completed_at: datetime | None = None,
     ) -> tuple[date, ...]:
         del completed_at
-        return tuple(
-            session for session in self._sessions if start <= session <= end
-        )
+        return tuple(session for session in self._sessions if start <= session <= end)
 
     def close_timestamp(self, session: date) -> datetime:
         if not self.is_session(session):
@@ -357,16 +354,15 @@ class PublicationFixture:
 
 
 def _publication_fixture(label: str) -> PublicationFixture:
-    object_bytes = f"normalized fixture object {label}".encode("utf-8")
-    report_bytes = f"validation fixture report {label}".encode("utf-8")
+    object_bytes = f"normalized fixture object {label}".encode()
+    report_bytes = f"validation fixture report {label}".encode()
     object_checksum = sha256_bytes(object_bytes)
     report_checksum = sha256_bytes(report_bytes)
     reference = ContentAddressedObjectRef(
         object_kind=ObjectKind.NORMALIZED,
         checksum=object_checksum,
         relative_uri=(
-            "objects/normalized/symbol=AAPL/year=2024/"
-            f"sha256={object_checksum}.parquet"
+            f"objects/normalized/symbol=AAPL/year=2024/sha256={object_checksum}.parquet"
         ),
         schema_version="daily_bar_v1",
         row_count=1,
@@ -504,7 +500,9 @@ def _fixture_parent(
     records: tuple[ProviderRecord, ...],
     requested_range: DateRange,
 ) -> IncrementalParent:
-    normalized = tuple(Normalizer(CausalForwardAdjustmentV1()).normalize(records, calendar))
+    normalized = tuple(
+        Normalizer(CausalForwardAdjustmentV1()).normalize(records, calendar)
+    )
     sessions = calendar.sessions(requested_range.start, requested_range.end)
     expected = {symbol: sessions for symbol in ALL_SYMBOLS}
     validation = ValidationService(calendar=calendar, benchmark_symbol="SPY").validate(
@@ -572,35 +570,57 @@ def test_every_publication_boundary_preserves_prior_and_retry_identity(
     manager = SnapshotManager(storage=store, metadata=metadata)
     assert isinstance(manager.open_verified(prior.manifest.snapshot_id), Ok)
     if fault_point == "after_duckdb_commit":
-        assert metadata.get_snapshot(candidate.manifest.snapshot_id).availability is SnapshotAvailability.AVAILABLE
+        assert (
+            metadata.get_snapshot(candidate.manifest.snapshot_id).availability
+            is SnapshotAvailability.AVAILABLE
+        )
     else:
         with pytest.raises(MetadataNotFoundError):
             metadata.get_snapshot(candidate.manifest.snapshot_id)
 
-    retry = store.publish_snapshot(candidate.candidate(), operation_id="candidate-retry")
+    retry = store.publish_snapshot(
+        candidate.candidate(), operation_id="candidate-retry"
+    )
     assert retry.snapshot_id == candidate.manifest.snapshot_id
-    assert metadata.get_snapshot(candidate.manifest.snapshot_id).availability is SnapshotAvailability.AVAILABLE
+    assert (
+        metadata.get_snapshot(candidate.manifest.snapshot_id).availability
+        is SnapshotAvailability.AVAILABLE
+    )
     assert isinstance(manager.open_verified(candidate.manifest.snapshot_id), Ok)
 
     clean_metadata = DuckDBMetadataStore(tmp_path / "clean-metadata.duckdb")
     clean_store = FilesystemStore(tmp_path / "clean-store", metadata=clean_metadata)
     clean = clean_store.publish_snapshot(candidate.candidate(), operation_id="clean")
     assert retry.manifest.snapshot_id == clean.manifest.snapshot_id
-    assert retry.manifest.to_content_identity_dict() == clean.manifest.to_content_identity_dict()
-    assert tuple(ref.checksum for ref in retry.manifest.content_identity.objects) == tuple(
-        ref.checksum for ref in clean.manifest.content_identity.objects
+    assert (
+        retry.manifest.to_content_identity_dict()
+        == clean.manifest.to_content_identity_dict()
     )
+    assert tuple(
+        ref.checksum for ref in retry.manifest.content_identity.objects
+    ) == tuple(ref.checksum for ref in clean.manifest.content_identity.objects)
     for reference in candidate.manifest.content_identity.objects:
         assert store.read_object(reference.relative_uri) == candidate.object_bytes
         assert clean_store.read_object(reference.relative_uri) == candidate.object_bytes
-    assert store.read_by_checksum(candidate.manifest.content_identity.validation_report_checksum) == candidate.report_bytes
-    assert clean_store.read_by_checksum(candidate.manifest.content_identity.validation_report_checksum) == candidate.report_bytes
+    assert (
+        store.read_by_checksum(
+            candidate.manifest.content_identity.validation_report_checksum
+        )
+        == candidate.report_bytes
+    )
+    assert (
+        clean_store.read_by_checksum(
+            candidate.manifest.content_identity.validation_report_checksum
+        )
+        == candidate.report_bytes
+    )
     assert tuple(item.snapshot_id for item in metadata.list_snapshots()) == (
         candidate.manifest.snapshot_id,
         prior.manifest.snapshot_id,
-    ) or {
-        item.snapshot_id for item in metadata.list_snapshots()
-    } == {prior.manifest.snapshot_id, candidate.manifest.snapshot_id}
+    ) or {item.snapshot_id for item in metadata.list_snapshots()} == {
+        prior.manifest.snapshot_id,
+        candidate.manifest.snapshot_id,
+    }
     metadata.close()
     clean_metadata.close()
 
@@ -636,7 +656,9 @@ def test_real_ingestion_persists_cas_manifest_index_operation_and_progress(
         ObjectKind.RAW,
         ObjectKind.NORMALIZED,
     }
-    assert all(reference.relative_uri.startswith("objects/") for reference in references)
+    assert all(
+        reference.relative_uri.startswith("objects/") for reference in references
+    )
     indexed_objects = metadata.list_snapshot_objects(value.snapshot_id)
     assert len(indexed_objects) == len(references)
     for reference in references:
@@ -646,7 +668,10 @@ def test_real_ingestion_persists_cas_manifest_index_operation_and_progress(
     report_bytes = store.read_by_checksum(
         value.manifest.content_identity.validation_report_checksum
     )
-    assert sha256_bytes(report_bytes) == value.manifest.content_identity.validation_report_checksum
+    assert (
+        sha256_bytes(report_bytes)
+        == value.manifest.content_identity.validation_report_checksum
+    )
 
     assert value.operation_id is not None
     operation = metadata.get_ingestion_operation(value.operation_id)
@@ -721,7 +746,9 @@ def test_ingestion_fault_leaves_prior_available_and_reconciles_on_retry(
         jobs,
     ).ingest(_config(end=EXTENDED_RANGE.end))
     assert isinstance(failed, Err)
-    assert any(error.category is ErrorCategory.INTERNAL_UNEXPECTED for error in failed.errors)
+    assert any(
+        error.category is ErrorCategory.INTERNAL_UNEXPECTED for error in failed.errors
+    )
     assert fired
 
     manager = SnapshotManager(storage=interrupted_store, metadata=metadata)
@@ -740,7 +767,12 @@ def test_ingestion_fault_leaves_prior_available_and_reconciles_on_retry(
     restarted_store = FilesystemStore(tmp_path / "store", metadata=metadata)
     reconciliation = restarted_store.reconcile()
     assert reconciliation.indexed_snapshot_ids == (candidate_id,)
-    assert isinstance(SnapshotManager(storage=restarted_store, metadata=metadata).open_verified(candidate_id), Ok)
+    assert isinstance(
+        SnapshotManager(storage=restarted_store, metadata=metadata).open_verified(
+            candidate_id
+        ),
+        Ok,
+    )
     assert isinstance(manager.open_verified(prior_id), Ok)
 
     retry_provider = OfflineYFinanceFixture(calendar)
@@ -831,9 +863,7 @@ def test_incremental_service_uses_no_request_for_unchanged_and_rebuilds_revised_
     assert len({row.session_key for row in revised.value.accepted_rows}) == len(
         revised.value.accepted_rows
     )
-    prior_by_key = {
-        (row.symbol, row.session): row for row in parent.accepted_rows
-    }
+    prior_by_key = {(row.symbol, row.session): row for row in parent.accepted_rows}
     revised_by_key = {
         (row.symbol, row.session): row for row in revised.value.accepted_rows
     }
@@ -977,9 +1007,10 @@ def test_relocation_corruption_reconciliation_and_mutation_guards(
     assert opened.value.snapshot_id == fixture.manifest.snapshot_id
     assert isinstance(relocated_manager.open_verified(prior.manifest.snapshot_id), Ok)
     listed = relocated_manager.list_snapshots()
-    assert {
-        item.snapshot_id for item in listed.items
-    } == {prior.manifest.snapshot_id, fixture.manifest.snapshot_id}
+    assert {item.snapshot_id for item in listed.items} == {
+        prior.manifest.snapshot_id,
+        fixture.manifest.snapshot_id,
+    }
 
     reference = fixture.manifest.content_identity.objects[0]
     store._cas_path(reference.relative_uri).write_bytes(b"corrupt immutable bytes")  # type: ignore[attr-defined]
@@ -991,14 +1022,22 @@ def test_relocation_corruption_reconciliation_and_mutation_guards(
     reconciliation = store.reconcile()
     assert reconciliation.ignored_publication_ids == (fixture.manifest.snapshot_id,)
     assert reconciliation.unavailable_snapshot_ids == (fixture.manifest.snapshot_id,)
-    assert metadata.get_snapshot(fixture.manifest.snapshot_id).availability is SnapshotAvailability.UNAVAILABLE
-    assert metadata.get_snapshot(prior.manifest.snapshot_id).availability is SnapshotAvailability.AVAILABLE
+    assert (
+        metadata.get_snapshot(fixture.manifest.snapshot_id).availability
+        is SnapshotAvailability.UNAVAILABLE
+    )
+    assert (
+        metadata.get_snapshot(prior.manifest.snapshot_id).availability
+        is SnapshotAvailability.AVAILABLE
+    )
 
     mutation_results = (
         manager.reject_mutation(fixture.manifest.snapshot_id),
         manager.publish(fixture.candidate()),
         manager.replace_manifest(fixture.manifest.snapshot_id, b"replacement"),
-        manager.replace_object(fixture.manifest.snapshot_id, reference.relative_uri, b"replacement"),
+        manager.replace_object(
+            fixture.manifest.snapshot_id, reference.relative_uri, b"replacement"
+        ),
         manager.update_snapshot(fixture.manifest.snapshot_id, availability="available"),
         manager.delete_snapshot(fixture.manifest.snapshot_id),
     )

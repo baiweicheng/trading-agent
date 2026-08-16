@@ -14,7 +14,6 @@ from quant_research_platform.config.serializer import Redactor
 from quant_research_platform.domain.execution import JobStage
 from quant_research_platform.infrastructure.logging import StructuredJsonlLogger
 
-
 _NOW = datetime(2024, 1, 2, 15, 30, tzinfo=UTC)
 
 

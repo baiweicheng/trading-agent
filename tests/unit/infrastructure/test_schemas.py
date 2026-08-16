@@ -247,9 +247,7 @@ def test_representative_records_round_trip_through_every_canonical_table() -> No
         (positions_to_table([state]), POSITIONS_V1),
         (portfolio_states_to_table([state]), PORTFOLIO_V1),
         (
-            returns_to_table(
-                [DailyReturn(date(2024, 1, 3), Decimal("0.01"))]
-            ),
+            returns_to_table([DailyReturn(date(2024, 1, 3), Decimal("0.01"))]),
             RETURNS_V1,
         ),
         (

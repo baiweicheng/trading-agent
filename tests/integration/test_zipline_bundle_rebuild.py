@@ -160,9 +160,7 @@ class _DeterministicWriter:
     ) -> None:
         del bundle_name, bundle_timestamp, start_session, end_session, calendar
         self.calls += 1
-        materialized_rows = tuple(
-            (sid, tuple(rows)) for sid, rows in daily_rows
-        )
+        materialized_rows = tuple((sid, tuple(rows)) for sid, rows in daily_rows)
         self.projections.append((tuple(assets), tuple(splits), tuple(dividends)))
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir / "assets.json").write_bytes(
@@ -180,9 +178,9 @@ class _DeterministicWriter:
                     handle.write(canonical_json(row.to_content_dict()))
 
 
-def _published_fixture(tmp_path: Path) -> tuple[
-    _BundleCalendar, FilesystemStore, DuckDBMetadataStore, SnapshotManifest
-]:
+def _published_fixture(
+    tmp_path: Path,
+) -> tuple[_BundleCalendar, FilesystemStore, DuckDBMetadataStore, SnapshotManifest]:
     """Publish one complete local snapshot containing real Parquet objects."""
 
     calendar = _BundleCalendar()
@@ -337,9 +335,7 @@ def test_verified_copy_reuses_bundle_identity_and_reads_only_configured_projecti
         }
         assert len(daily_calls) == len(ALL_SYMBOLS)
         assert all(
-            "adjusted" not in column
-            for call in source.calls
-            for column in call.columns
+            "adjusted" not in column for call in source.calls for column in call.columns
         )
         assert first.value.bundle_name != "latest"
 

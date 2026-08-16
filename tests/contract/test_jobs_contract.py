@@ -88,7 +88,10 @@ def test_partial_ingestion_progress_is_redacted_terminally_flushed_and_reloads(
         persisted = reopened.get_job(job.job_id)
         events = reopened.list_job_events(job.job_id)
         assert persisted.state is JobState.PARTIALLY_SUCCEEDED
-        assert persisted.warnings == ("AAPL failed through [REDACTED]", "MSFT completed")
+        assert persisted.warnings == (
+            "AAPL failed through [REDACTED]",
+            "MSFT completed",
+        )
         assert events[-1].stage is JobStage.COMPLETED
 
     diagnostics = log_path.read_text(encoding="utf-8")

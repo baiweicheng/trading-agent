@@ -61,7 +61,10 @@ def test_allocation_logs_only_redacted_scalar_inputs_and_local_references() -> N
         run_id=run_id,
         snapshot_id="snap_" + "a" * 64,
         strategy_id="monthly_momentum_v1",
-        strategy_parameters={"position_count": 3, "proxy": "https://user:password@example.invalid"},
+        strategy_parameters={
+            "position_count": 3,
+            "proxy": "https://user:password@example.invalid",
+        },
         evaluation_start=date(2024, 1, 2),
         evaluation_end=date(2024, 1, 31),
         universe=("AAPL", "MSFT"),
@@ -75,7 +78,10 @@ def test_allocation_logs_only_redacted_scalar_inputs_and_local_references() -> N
     assert handle.mlflow_run_id == "mlflow-1"
     assert all("password" not in str(item) for item in client.params)
     assert all("password" not in str(item) for item in client.text)
-    assert any(key == "strategy.proxy" and value == "[REDACTED]" for _, key, value in client.params)
+    assert any(
+        key == "strategy.proxy" and value == "[REDACTED]"
+        for _, key, value in client.params
+    )
     assert not any("log_artifact" in name for name in dir(client))
 
 

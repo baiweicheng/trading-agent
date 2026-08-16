@@ -32,20 +32,18 @@ from ..domain.execution import (
     OrderRecord,
     OrderStatus,
     deterministic_order_id,
-    quantize_money,
 )
 from ..domain.manifests import SnapshotManifest, VerifiedSnapshotHandle
 from ..domain.strategy import (
+    STRATEGY_IDENTIFIER,
     MomentumStrategyParameters,
     PriceHistory,
     PriceObservation,
     RationalWeight,
-    STRATEGY_IDENTIFIER,
     StrategyDecision,
     StrategyExclusionReason,
     monthly_momentum_v1,
 )
-
 
 HistoryRow: TypeAlias = object
 HistoryInput: TypeAlias = PriceHistory | Iterable[HistoryRow] | Mapping[object, object]
@@ -66,6 +64,7 @@ class SnapshotHistoryReader(Protocol):
         symbols: tuple[str, ...],
         end_session: date,
         fields: tuple[str, ...],
+        start_session: date | None = None,
     ) -> Iterable[HistoryRow]:
         """Return rows for ``symbols`` no later than ``end_session``."""
 
@@ -98,7 +97,9 @@ class DecisionRunInputs:
     snapshot_id: str | None = None
 
     def __post_init__(self) -> None:
-        if isinstance(self.position_count, bool) or not isinstance(self.position_count, int):
+        if isinstance(self.position_count, bool) or not isinstance(
+            self.position_count, int
+        ):
             raise TypeError("position_count must be an integer")
         if self.position_count < 1:
             raise ValueError("position_count must be at least one")
@@ -163,16 +164,25 @@ class OrderIntent:
     decision_rank: int | None = None
 
     def __post_init__(self) -> None:
-        if isinstance(self.signal_session, datetime) or not isinstance(self.signal_session, date):
+        if isinstance(self.signal_session, datetime) or not isinstance(
+            self.signal_session, date
+        ):
             raise TypeError("signal_session must be a calendar date")
-        if isinstance(self.execution_session, datetime) or not isinstance(self.execution_session, date):
+        if isinstance(self.execution_session, datetime) or not isinstance(
+            self.execution_session, date
+        ):
             raise TypeError("execution_session must be a calendar date")
         if self.execution_session <= self.signal_session:
             raise ValueError("execution_session must be after signal_session")
         if not isinstance(self.symbol, str) or not self.symbol.strip():
             raise ValueError("symbol must be a non-blank string")
         object.__setattr__(self, "symbol", self.symbol.strip().upper())
-        for field_name in ("requested_quantity", "ordinal", "target_shares", "current_shares"):
+        for field_name in (
+            "requested_quantity",
+            "ordinal",
+            "target_shares",
+            "current_shares",
+        ):
             value = getattr(self, field_name)
             if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError(f"{field_name} must be an integer")
@@ -183,7 +193,9 @@ class OrderIntent:
         if self.target_shares < 0 or self.current_shares < 0:
             raise ValueError("share counts must be non-negative")
         if self.requested_quantity != self.target_shares - self.current_shares:
-            raise ValueError("requested_quantity must equal target_shares - current_shares")
+            raise ValueError(
+                "requested_quantity must equal target_shares - current_shares"
+            )
         if self.decision_rank is not None and (
             isinstance(self.decision_rank, bool)
             or not isinstance(self.decision_rank, int)
@@ -302,23 +314,35 @@ class DecisionDeliveryResult:
     decision_book: DecisionBook
 
     def __post_init__(self) -> None:
-        if isinstance(self.signal_session, datetime) or not isinstance(self.signal_session, date):
+        if isinstance(self.signal_session, datetime) or not isinstance(
+            self.signal_session, date
+        ):
             raise TypeError("signal_session must be a calendar date")
         if not isinstance(self.decisions, tuple) or any(
             not isinstance(item, StrategyDecision) for item in self.decisions
         ):
-            raise TypeError("decisions must be an immutable tuple of StrategyDecision values")
+            raise TypeError(
+                "decisions must be an immutable tuple of StrategyDecision values"
+            )
         if not isinstance(self.order_intents, tuple) or any(
             not isinstance(item, OrderIntent) for item in self.order_intents
         ):
-            raise TypeError("order_intents must be an immutable tuple of OrderIntent values")
+            raise TypeError(
+                "order_intents must be an immutable tuple of OrderIntent values"
+            )
         if not isinstance(self.run_inputs, DecisionRunInputs):
             raise TypeError("run_inputs must be DecisionRunInputs")
         if not isinstance(self.decision_book, DecisionBook):
             raise TypeError("decision_book must be DecisionBook")
-        if not isinstance(self.marked_equity, Decimal) or not self.marked_equity.is_finite() or self.marked_equity <= 0:
+        if (
+            not isinstance(self.marked_equity, Decimal)
+            or not self.marked_equity.is_finite()
+            or self.marked_equity <= 0
+        ):
             raise ValueError("marked_equity must be a finite positive Decimal")
-        if tuple(item.signal_session for item in self.decisions) != (self.signal_session,) * len(self.decisions):
+        if tuple(item.signal_session for item in self.decisions) != (
+            self.signal_session,
+        ) * len(self.decisions):
             raise ValueError("all delivered decisions must use signal_session")
         if self.decision_book.reveal(self.signal_session) != self.decisions:
             raise ValueError("decision_book must contain the delivered decisions")
@@ -408,7 +432,13 @@ class CausalDecisionDelivery:
         """
 
         try:
-            sessions = tuple(sorted(set(_date_only(value, "signal_session") for value in signal_sessions)))
+            sessions = tuple(
+                sorted(
+                    set(
+                        _date_only(value, "signal_session") for value in signal_sessions
+                    )
+                )
+            )
             if not sessions:
                 raise ValueError("signal_sessions must contain at least one session")
             resolved = self._verify_snapshot(snapshot)
@@ -417,10 +447,14 @@ class CausalDecisionDelivery:
             )
             all_decisions: list[StrategyDecision] = []
             for signal in sessions:
-                source = history if history is not None else self._read_history(
-                    resolved,
-                    signal,
-                    resolved_universe,
+                source = (
+                    history
+                    if history is not None
+                    else self._read_history(
+                        resolved,
+                        signal,
+                        resolved_universe,
+                    )
                 )
                 decisions, _ = self._decisions_for_signal(
                     source,
@@ -437,9 +471,13 @@ class CausalDecisionDelivery:
         except _DecisionFailure as failure:
             return Err(failure.errors, preserve_order=True)
         except (TypeError, ValueError) as error:
-            return Err((self._input_error("decisions.prepare", error),), preserve_order=True)
+            return Err(
+                (self._input_error("decisions.prepare", error),), preserve_order=True
+            )
         except Exception as error:
-            return Err((ActionableError.from_unexpected_exception("decisions.prepare", error),))
+            return Err(
+                (ActionableError.from_unexpected_exception("decisions.prepare", error),)
+            )
 
     def deliver(
         self,
@@ -460,10 +498,14 @@ class CausalDecisionDelivery:
             resolved_universe, resolved_count = self._resolve_strategy_inputs(
                 resolved, universe=universe, position_count=position_count
             )
-            source = history if history is not None else self._read_history(
-                resolved,
-                signal,
-                resolved_universe,
+            source = (
+                history
+                if history is not None
+                else self._read_history(
+                    resolved,
+                    signal,
+                    resolved_universe,
+                )
             )
             decisions, sizing_prices = self._decisions_for_signal(
                 source,
@@ -508,11 +550,17 @@ class CausalDecisionDelivery:
         except _DecisionFailure as failure:
             return Err(failure.errors, preserve_order=True)
         except (TypeError, ValueError, ArithmeticError) as error:
-            return Err((self._input_error("decisions.deliver", error),), preserve_order=True)
+            return Err(
+                (self._input_error("decisions.deliver", error),), preserve_order=True
+            )
         except Exception as error:
-            return Err((ActionableError.from_unexpected_exception("decisions.deliver", error),))
+            return Err(
+                (ActionableError.from_unexpected_exception("decisions.deliver", error),)
+            )
 
-    def deliver_or_raise(self, *args: object, **kwargs: object) -> DecisionDeliveryResult:
+    def deliver_or_raise(
+        self, *args: object, **kwargs: object
+    ) -> DecisionDeliveryResult:
         """Convenience form for local unit callers that prefer exceptions."""
 
         result = self.deliver(*cast(Any, args), **cast(Any, kwargs))
@@ -531,18 +579,26 @@ class CausalDecisionDelivery:
     reveal_to_zipline = reveal
     decisions_for = reveal
 
-    def _verify_snapshot(self, snapshot: SnapshotInput) -> VerifiedSnapshotHandle | SnapshotManifest | object:
-        supplied_id = snapshot if isinstance(snapshot, str) else getattr(snapshot, "snapshot_id", None)
+    def _verify_snapshot(
+        self, snapshot: SnapshotInput
+    ) -> VerifiedSnapshotHandle | SnapshotManifest | object:
+        supplied_id = (
+            snapshot
+            if isinstance(snapshot, str)
+            else getattr(snapshot, "snapshot_id", None)
+        )
         if supplied_id is None:
-            raise _DecisionFailure((
-                ActionableError(
-                    operation="decisions.snapshot",
-                    category=ErrorCategory.INTEGRITY_CHECKSUM,
-                    message="Decision delivery did not receive a verified snapshot.",
-                    corrective_action="Pass a checksum-verified snapshot handle or a Snapshot_ID with a verifier.",
-                    field_path="snapshot",
-                ),
-            ))
+            raise _DecisionFailure(
+                (
+                    ActionableError(
+                        operation="decisions.snapshot",
+                        category=ErrorCategory.INTEGRITY_CHECKSUM,
+                        message="Decision delivery did not receive a verified snapshot.",
+                        corrective_action="Pass a checksum-verified snapshot handle or a Snapshot_ID with a verifier.",
+                        field_path="snapshot",
+                    ),
+                )
+            )
         if not isinstance(supplied_id, str) or not supplied_id.strip():
             raise _DecisionFailure((self._snapshot_error(),))
         if self.snapshot_manager is not None:
@@ -557,15 +613,17 @@ class CausalDecisionDelivery:
         # verification step.  The service cannot verify an opaque ID without
         # an injected manager, but it still requires the immutable ID field.
         if isinstance(snapshot, str):
-            raise _DecisionFailure((
-                ActionableError(
-                    operation="decisions.snapshot",
-                    category=ErrorCategory.INTEGRITY_CHECKSUM,
-                    message="Decision delivery requires a verified snapshot handle.",
-                    corrective_action="Open and verify the selected Snapshot_ID before delivering decisions.",
-                    field_path="snapshot_id",
-                ),
-            ))
+            raise _DecisionFailure(
+                (
+                    ActionableError(
+                        operation="decisions.snapshot",
+                        category=ErrorCategory.INTEGRITY_CHECKSUM,
+                        message="Decision delivery requires a verified snapshot handle.",
+                        corrective_action="Open and verify the selected Snapshot_ID before delivering decisions.",
+                        field_path="snapshot_id",
+                    ),
+                )
+            )
         return snapshot
 
     def _manifest_for(self, snapshot: object) -> SnapshotManifest | None:
@@ -595,7 +653,9 @@ class CausalDecisionDelivery:
         elif universe is None and manifest is not None:
             configured = manifest.content_identity.configured_universe
         elif universe is None:
-            raise ValueError("universe is required when no resolved configuration or manifest is available")
+            raise ValueError(
+                "universe is required when no resolved configuration or manifest is available"
+            )
         else:
             configured = tuple(universe)
         normalized: list[str] = []
@@ -617,11 +677,17 @@ class CausalDecisionDelivery:
                 count = min(5, len(normalized))
         else:
             count = position_count
-        if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= len(normalized):
+        if (
+            isinstance(count, bool)
+            or not isinstance(count, int)
+            or not 1 <= count <= len(normalized)
+        ):
             raise ValueError("position_count must be between 1 and the universe size")
         return tuple(normalized), count
 
-    def _run_inputs(self, snapshot: object, *, position_count: int) -> DecisionRunInputs:
+    def _run_inputs(
+        self, snapshot: object, *, position_count: int
+    ) -> DecisionRunInputs:
         manifest = self._manifest_for(snapshot)
         policy = self.policy_version
         if policy is None and manifest is not None:
@@ -640,16 +706,18 @@ class CausalDecisionDelivery:
     ) -> HistoryInput:
         reader = self.snapshot_reader
         if reader is None:
-            raise _DecisionFailure((
-                ActionableError(
-                    operation="decisions.read_history",
-                    category=ErrorCategory.STORAGE_IO,
-                    message="No verified snapshot history reader is configured.",
-                    corrective_action="Inject a projected reader for the selected snapshot.",
-                    field_path="snapshot_reader",
-                    session=signal_session,
-                ),
-            ))
+            raise _DecisionFailure(
+                (
+                    ActionableError(
+                        operation="decisions.read_history",
+                        category=ErrorCategory.STORAGE_IO,
+                        message="No verified snapshot history reader is configured.",
+                        corrective_action="Inject a projected reader for the selected snapshot.",
+                        field_path="snapshot_reader",
+                        session=signal_session,
+                    ),
+                )
+            )
         method: Callable[..., object] | None = None
         for name in ("read_history", "read_daily_bars", "read_bars", "read", "scan"):
             candidate = getattr(reader, name, None)
@@ -659,7 +727,9 @@ class CausalDecisionDelivery:
         if method is None and callable(reader):
             method = cast(Callable[..., object], reader)
         if method is None:
-            raise TypeError("snapshot_reader must expose read_history(), scan(), or be callable")
+            raise TypeError(
+                "snapshot_reader must expose read_history(), scan(), or be callable"
+            )
 
         result = _call_reader(
             method,
@@ -689,7 +759,11 @@ class CausalDecisionDelivery:
                 except (TypeError, ValueError, OverflowError):
                     candidates = ()
                 normalized = tuple(
-                    value for value in candidates if isinstance(value, date) and not isinstance(value, datetime) and value <= signal_session
+                    value
+                    for value in candidates
+                    if isinstance(value, date)
+                    and not isinstance(value, datetime)
+                    and value <= signal_session
                 )
                 if len(normalized) >= 254:
                     return normalized[-254]
@@ -702,7 +776,9 @@ class CausalDecisionDelivery:
         universe: tuple[str, ...],
         position_count: int,
     ) -> tuple[tuple[StrategyDecision, ...], Mapping[tuple[str, date], Decimal]]:
-        observations, sizing_prices, sessions = _normalize_history(source, signal_session)
+        observations, sizing_prices, sessions = _normalize_history(
+            source, signal_session
+        )
         if not observations:
             raise ValueError("verified snapshot has no history through signal_session")
         history = PriceHistory(
@@ -722,10 +798,14 @@ class CausalDecisionDelivery:
         if tuple(item.symbol for item in decisions) != universe:
             by_symbol = {item.symbol: item for item in decisions}
             if set(by_symbol) != set(universe):
-                raise ValueError("strategy must return exactly one decision per configured symbol")
+                raise ValueError(
+                    "strategy must return exactly one decision per configured symbol"
+                )
             decisions = tuple(by_symbol[symbol] for symbol in universe)
         if len(decisions) != len(universe):
-            raise ValueError("strategy must return exactly one decision per configured symbol")
+            raise ValueError(
+                "strategy must return exactly one decision per configured symbol"
+            )
         return decisions, sizing_prices
 
     def _next_session(self, signal_session: date) -> date:
@@ -763,8 +843,12 @@ class CausalDecisionDelivery:
         for symbol, selected_decision in selected.items():
             price = sizing_prices.get((symbol, signal_session))
             if price is None:
-                raise ValueError(f"sizing_adjusted_close is unavailable for selected symbol {symbol}")
-            target_shares[symbol] = _floor_target_shares(marked_equity, selected_decision.target_weight, price)
+                raise ValueError(
+                    f"sizing_adjusted_close is unavailable for selected symbol {symbol}"
+                )
+            target_shares[symbol] = _floor_target_shares(
+                marked_equity, selected_decision.target_weight, price
+            )
 
         all_symbols = set(snapshot.holdings) | set(selected)
         deltas: list[tuple[str, int, int, int | None, Decimal]] = []
@@ -777,8 +861,18 @@ class CausalDecisionDelivery:
             held_decision: StrategyDecision | None = selected.get(symbol)
             price = sizing_prices.get((symbol, signal_session))
             if price is None:
-                raise ValueError(f"sizing_adjusted_close is unavailable for held symbol {symbol}")
-            deltas.append((symbol, current, target, held_decision.rank if held_decision else None, price))
+                raise ValueError(
+                    f"sizing_adjusted_close is unavailable for held symbol {symbol}"
+                )
+            deltas.append(
+                (
+                    symbol,
+                    current,
+                    target,
+                    held_decision.rank if held_decision else None,
+                    price,
+                )
+            )
 
         # The order list is deterministic and also gives the later blotter the
         # intended sell-first / ranked-buy ordering without needing future data.
@@ -830,7 +924,9 @@ class CausalDecisionDelivery:
             price = sizing_prices.get((symbol, signal_session))
             if price is None:
                 if require_prices:
-                    raise ValueError(f"sizing_adjusted_close is unavailable for held symbol {symbol}")
+                    raise ValueError(
+                        f"sizing_adjusted_close is unavailable for held symbol {symbol}"
+                    )
                 continue
             marked += Decimal(quantity) * price
         if not snapshot.holdings and snapshot.supplied_equity is not None:
@@ -868,14 +964,18 @@ DecisionDelivery = CausalDecisionDelivery
 DecisionDeliveryOutput = DecisionDeliveryResult
 
 
-def deliver_decisions(*args: object, **kwargs: object) -> Result[DecisionDeliveryResult]:
+def deliver_decisions(
+    *args: object, **kwargs: object
+) -> Result[DecisionDeliveryResult]:
     """Functional facade for one causal delivery operation."""
 
     service = kwargs.pop("service", None)
     if service is None:
         service = CausalDecisionDelivery(
             snapshot_reader=kwargs.pop("snapshot_reader", None),
-            snapshot_manager=cast(DecisionSnapshotVerifier | None, kwargs.pop("snapshot_manager", None)),
+            snapshot_manager=cast(
+                DecisionSnapshotVerifier | None, kwargs.pop("snapshot_manager", None)
+            ),
             calendar=kwargs.pop("calendar", None),
         )
     if not isinstance(service, CausalDecisionDelivery):
@@ -995,7 +1095,9 @@ def _call_reader(
     kwargs: dict[str, object] = {}
     positional: list[object] = []
     parameters = tuple(signature.parameters.values())
-    has_var_keyword = any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters)
+    has_var_keyword = any(
+        item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters
+    )
     for parameter in parameters:
         if parameter.name == "self":
             continue
@@ -1010,7 +1112,10 @@ def _call_reader(
             continue
         if parameter.kind is inspect.Parameter.POSITIONAL_ONLY:
             positional.append(value)
-        elif parameter.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY):
+        elif parameter.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        ):
             kwargs[parameter.name] = value
     if has_var_keyword:
         for name in ("symbols", "end_session", "fields"):
@@ -1037,17 +1142,25 @@ def _iter_history_rows(
             key_date = _as_date(key)
             key_symbol = key.strip().upper() if isinstance(key, str) else None
             if key_date is not None:
-                yield from _iter_history_rows(nested, symbol_hint=symbol_hint, session_hint=key_date)
+                yield from _iter_history_rows(
+                    nested, symbol_hint=symbol_hint, session_hint=key_date
+                )
             elif key_symbol is not None:
-                yield from _iter_history_rows(nested, symbol_hint=key_symbol, session_hint=session_hint)
+                yield from _iter_history_rows(
+                    nested, symbol_hint=key_symbol, session_hint=session_hint
+                )
             else:
-                yield from _iter_history_rows(nested, symbol_hint=symbol_hint, session_hint=session_hint)
+                yield from _iter_history_rows(
+                    nested, symbol_hint=symbol_hint, session_hint=session_hint
+                )
         return
     if isinstance(value, (str, bytes, bytearray)):
         return
     if isinstance(value, Iterable):
         for item in value:
-            yield from _iter_history_rows(item, symbol_hint=symbol_hint, session_hint=session_hint)
+            yield from _iter_history_rows(
+                item, symbol_hint=symbol_hint, session_hint=session_hint
+            )
         return
     if value is not None:
         yield value
@@ -1118,7 +1231,9 @@ def _decimal(value: object, field_name: str) -> Decimal | None:
 def _normalize_history(
     source: HistoryInput,
     signal_session: date,
-) -> tuple[list[PriceObservation], Mapping[tuple[str, date], Decimal], tuple[date, ...]]:
+) -> tuple[
+    list[PriceObservation], Mapping[tuple[str, date], Decimal], tuple[date, ...]
+]:
     observations: dict[tuple[str, date], PriceObservation] = {}
     sizing: dict[tuple[str, date], Decimal] = {}
     sizing_candidates: dict[tuple[tuple[str, date], str], Decimal] = {}
@@ -1132,10 +1247,14 @@ def _normalize_history(
         session = _as_date(session_value)
         if symbol is None or not symbol or session is None or session > signal_session:
             continue
-        adjusted = _field(row, ("adjusted_close", "adjustedClose", "adj_close", "close", "price"))
+        adjusted = _field(
+            row, ("adjusted_close", "adjustedClose", "adj_close", "close", "price")
+        )
         if adjusted is None:
             continue
-        checksum_value = _field(row, ("canonical_row_checksum", "row_checksum", "checksum"))
+        checksum_value = _field(
+            row, ("canonical_row_checksum", "row_checksum", "checksum")
+        )
         checksum = checksum_value if isinstance(checksum_value, str) else None
         tradable_value = _field(row, ("tradable", "is_tradable"), True)
         observation = PriceObservation(
@@ -1147,7 +1266,10 @@ def _normalize_history(
         )
         key = (observation.symbol, observation.session)
         prior = observations.get(key)
-        if prior is None or observation.canonical_row_checksum < prior.canonical_row_checksum:
+        if (
+            prior is None
+            or observation.canonical_row_checksum < prior.canonical_row_checksum
+        ):
             observations[key] = observation
         sizing_value = _field(
             row,
@@ -1167,7 +1289,11 @@ def _normalize_history(
         sizing_price = sizing_candidates.get((key, observation.canonical_row_checksum))
         if sizing_price is not None:
             sizing[key] = sizing_price
-    return list(observations.values()), MappingProxyType(dict(sizing)), tuple(sorted(sessions))
+    return (
+        list(observations.values()),
+        MappingProxyType(dict(sizing)),
+        tuple(sorted(sessions)),
+    )
 
 
 def _normalize_sizing_prices(
@@ -1192,14 +1318,19 @@ def _normalize_sizing_prices(
 def _portfolio_snapshot(portfolio: object | None) -> _PortfolioSnapshot:
     if portfolio is None:
         return _PortfolioSnapshot({}, INITIAL_PORTFOLIO_EQUITY, None)
-    positions_value = _field(portfolio, ("positions", "holdings", "current_positions"), {})
+    positions_value = _field(
+        portfolio, ("positions", "holdings", "current_positions"), {}
+    )
     holdings: dict[str, int] = {}
     if isinstance(positions_value, Mapping):
-        for symbol, value in positions_value.items():
+        for asset, value in positions_value.items():
             quantity = _quantity(value)
             if quantity:
-                holdings[str(symbol).strip().upper()] = quantity
-    elif isinstance(positions_value, Iterable) and not isinstance(positions_value, (str, bytes, bytearray)):
+                symbol = _portfolio_symbol(asset)
+                holdings[symbol] = holdings.get(symbol, 0) + quantity
+    elif isinstance(positions_value, Iterable) and not isinstance(
+        positions_value, (str, bytes, bytearray)
+    ):
         for item in positions_value:
             symbol = _field(item, ("symbol", "asset", "ticker"))
             quantity_value = _field(item, ("quantity", "shares", "amount"))
@@ -1207,9 +1338,14 @@ def _portfolio_snapshot(portfolio: object | None) -> _PortfolioSnapshot:
                 continue
             normalized_quantity = _quantity(quantity_value)
             if normalized_quantity:
-                holdings[str(symbol).strip().upper()] = normalized_quantity
+                normalized_symbol = _portfolio_symbol(symbol)
+                holdings[normalized_symbol] = (
+                    holdings.get(normalized_symbol, 0) + normalized_quantity
+                )
     cash_value = _field(portfolio, ("cash_balance", "cash", "available_cash"))
-    supplied_equity_value = _field(portfolio, ("portfolio_equity", "equity", "total_value"))
+    supplied_equity_value = _field(
+        portfolio, ("portfolio_equity", "equity", "total_value")
+    )
     if cash_value is None:
         if not holdings and supplied_equity_value is not None:
             cash = _positive_decimal(supplied_equity_value, "cash_balance")
@@ -1223,22 +1359,37 @@ def _portfolio_snapshot(portfolio: object | None) -> _PortfolioSnapshot:
     else:
         cash = _non_negative_decimal(cash_value, "cash_balance")
     supplied_equity = (
-        None if supplied_equity_value is None else _positive_decimal(supplied_equity_value, "portfolio_equity")
+        None
+        if supplied_equity_value is None
+        else _positive_decimal(supplied_equity_value, "portfolio_equity")
     )
     return _PortfolioSnapshot(MappingProxyType(holdings), cash, supplied_equity)
 
 
+def _portfolio_symbol(value: object) -> str:
+    candidate = _field(value, ("symbol", "ticker"))
+    if candidate is None and isinstance(value, str):
+        candidate = value
+    if candidate is None:
+        candidate = str(value)
+    normalized = str(candidate).strip().upper()
+    if not normalized:
+        raise ValueError("portfolio assets must expose a non-empty symbol")
+    return normalized
+
+
 def _quantity(value: object) -> int:
-    quantity_value: object = value
-    if hasattr(quantity_value, "quantity") and not isinstance(quantity_value, (int, Decimal)):
-        quantity_value = getattr(quantity_value, "quantity")
+    quantity_value = _field(value, ("amount", "quantity"), value)
     if isinstance(quantity_value, bool):
         raise TypeError("portfolio quantities must be non-negative whole shares")
     if isinstance(quantity_value, int):
         if quantity_value < 0:
             raise ValueError("portfolio quantities must be non-negative whole shares")
         return quantity_value
-    if isinstance(quantity_value, Decimal) and quantity_value == quantity_value.to_integral_value():
+    if (
+        isinstance(quantity_value, Decimal)
+        and quantity_value == quantity_value.to_integral_value()
+    ):
         result = int(quantity_value)
         if result < 0:
             raise ValueError("portfolio quantities must be non-negative whole shares")
@@ -1260,7 +1411,9 @@ def _non_negative_decimal(value: object, field_name: str) -> Decimal:
     return result
 
 
-def _floor_target_shares(equity: Decimal, weight: RationalWeight, price: Decimal) -> int:
+def _floor_target_shares(
+    equity: Decimal, weight: RationalWeight, price: Decimal
+) -> int:
     if not price.is_finite() or price <= 0:
         raise ValueError("sizing_adjusted_close must be finite and positive")
     with localcontext() as context:

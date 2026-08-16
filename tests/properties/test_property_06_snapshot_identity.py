@@ -14,8 +14,8 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from quant_research_platform.application.snapshots import (
-    SnapshotManifestAssembler,
     SnapshotManager,
+    SnapshotManifestAssembler,
 )
 from quant_research_platform.domain.canonical import canonical_json, sha256_bytes
 from quant_research_platform.domain.errors import LimitationDisclosure, Ok
@@ -35,7 +35,6 @@ from quant_research_platform.infrastructure.filesystem_store import (
     FilesystemStore,
     SnapshotPublicationCandidate,
 )
-
 
 _ROW_SESSIONS = (
     date(2024, 1, 2),
@@ -164,9 +163,7 @@ def _object_bytes(
     source_rows = tuple(inputs.rows if rows is None else rows)
     result: dict[str, bytes] = {}
     for reference in _object_references(inputs, source_rows):
-        partition_rows = tuple(
-            row for row in source_rows if row[0] == reference.symbol
-        )
+        partition_rows = tuple(row for row in source_rows if row[0] == reference.symbol)
         result[reference.relative_uri] = _canonical_partition_bytes(partition_rows)
     return result
 
@@ -227,8 +224,7 @@ def _reference_content_identity(
         ).to_content_dict(),
         "configuration_checksum": inputs.configuration_checksum,
         "objects": [
-            reference.to_content_dict()
-            for reference in _object_references(inputs)
+            reference.to_content_dict() for reference in _object_references(inputs)
         ],
         "validation_report_checksum": report_checksum,
         "validation_summary": inputs.validation.summary.to_content_dict(),
@@ -242,9 +238,7 @@ def _reference_content_identity(
 
 
 def _reference_snapshot_id(inputs: SnapshotInputs) -> str:
-    return "snap_" + sha256_bytes(
-        canonical_json(_reference_content_identity(inputs))
-    )
+    return "snap_" + sha256_bytes(canonical_json(_reference_content_identity(inputs)))
 
 
 def _manifest(
@@ -264,13 +258,9 @@ def _manifest(
         covered_range=inputs.validation.summary.covered_range,
         configured_universe=inputs.configured_universe,
         benchmark_symbol="SPY",
-        calendar=CalendarIdentity(
-            "XNYS", "fixture-xnys-v1", inputs.calendar_checksum
-        ),
+        calendar=CalendarIdentity("XNYS", "fixture-xnys-v1", inputs.calendar_checksum),
         configuration_checksum=inputs.configuration_checksum,
-        objects=tuple(
-            _object_references(inputs) if refs is None else refs
-        ),
+        objects=tuple(_object_references(inputs) if refs is None else refs),
         validation=inputs.validation,
         limitation_disclosure=LimitationDisclosure.current(),
         schema_versions=inputs.schema_versions,
@@ -381,9 +371,7 @@ def snapshot_cases(draw: st.DrawFn) -> SnapshotCase:
         for index, symbol in enumerate(symbols)
         for session_index, session in enumerate(_ROW_SESSIONS)
     )
-    parent_rows = tuple(
-        row for row in rows if row[1] != _ROW_SESSIONS[-1].isoformat()
-    )
+    parent_rows = tuple(row for row in rows if row[1] != _ROW_SESSIONS[-1].isoformat())
     parent = SnapshotInputs(
         rows=parent_rows,
         requested_range=DateRange(_ROW_SESSIONS[0], _ROW_SESSIONS[1]),
@@ -510,11 +498,11 @@ def test_snapshot_content_identity_is_idempotent_and_confluent(
                 fault_injector=interrupt,
             )
         except RuntimeError as error:
-            assert str(error) == (
-                f"injected interruption: {case.interruption_point}"
-            )
+            assert str(error) == (f"injected interruption: {case.interruption_point}")
         else:  # Every generated point is reached by this non-empty candidate.
-            raise AssertionError("the generated publication interruption was not reached")
+            raise AssertionError(
+                "the generated publication interruption was not reached"
+            )
 
         recovered = store.publish_snapshot(
             _candidate(retry_manifest, case.merged, case.permuted_rows),
@@ -543,8 +531,7 @@ def test_snapshot_content_identity_is_idempotent_and_confluent(
             (reference.relative_uri, reference.checksum)
             for reference in recovered.manifest.content_identity.objects
         ) == tuple(
-            (reference.relative_uri, reference.checksum)
-            for reference in canonical_refs
+            (reference.relative_uri, reference.checksum) for reference in canonical_refs
         )
         assert revised.snapshot_id == changed_manifest.snapshot_id
 

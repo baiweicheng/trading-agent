@@ -48,7 +48,9 @@ def _history(
                     tradable=tradable.get((symbol, session), True),
                 )
             )
-    return PriceHistory(observations=tuple(observations), sessions=sessions, universe=universe)
+    return PriceHistory(
+        observations=tuple(observations), sessions=sessions, universe=universe
+    )
 
 
 def test_month_end_sessions_use_the_last_available_session_of_each_month() -> None:
@@ -59,8 +61,7 @@ def test_month_end_sessions_use_the_last_available_session_of_each_month() -> No
     )
     history = PriceHistory(
         observations=tuple(
-            PriceObservation("AAPL", session, Decimal("100"))
-            for session in sessions
+            PriceObservation("AAPL", session, Decimal("100")) for session in sessions
         ),
         sessions=sessions,
         universe=("AAPL",),
@@ -107,7 +108,9 @@ def test_exact_253_session_warmup_boundary_allows_first_score() -> None:
     )[0]
 
     assert before_boundary.eligible is False
-    assert before_boundary.exclusion_reason is StrategyExclusionReason.WARM_UP_INCOMPLETE
+    assert (
+        before_boundary.exclusion_reason is StrategyExclusionReason.WARM_UP_INCOMPLETE
+    )
     assert at_boundary.eligible is True
     assert at_boundary.momentum_score == Decimal("0.2")
     assert at_boundary.target_weight == RationalWeight(1, 1)
@@ -139,9 +142,17 @@ def test_endpoint_and_asset_status_exclusions_are_explicit() -> None:
     )
     by_symbol = {decision.symbol: decision for decision in decisions}
 
-    assert by_symbol["AAPL"].exclusion_reason is StrategyExclusionReason.MISSING_LONG_ENDPOINT
-    assert by_symbol["MSFT"].exclusion_reason is StrategyExclusionReason.MISSING_SHORT_ENDPOINT
-    assert by_symbol["PG"].exclusion_reason is StrategyExclusionReason.ASSET_NOT_TRADABLE
+    assert (
+        by_symbol["AAPL"].exclusion_reason
+        is StrategyExclusionReason.MISSING_LONG_ENDPOINT
+    )
+    assert (
+        by_symbol["MSFT"].exclusion_reason
+        is StrategyExclusionReason.MISSING_SHORT_ENDPOINT
+    )
+    assert (
+        by_symbol["PG"].exclusion_reason is StrategyExclusionReason.ASSET_NOT_TRADABLE
+    )
     assert by_symbol["PG"].momentum_score == Decimal("0.1")
     assert by_symbol["XOM"].eligible is True
     assert by_symbol["XOM"].target_weight == RationalWeight(1, 1)
@@ -175,7 +186,9 @@ def test_negative_scores_are_selected_and_ties_break_by_symbol() -> None:
     assert by_symbol["ZZZ"].target_weight == RationalWeight(1, 2)
     assert by_symbol["MID"].target_weight == RationalWeight.zero()
     assert by_symbol["MID"].exclusion_reason is StrategyExclusionReason.NOT_SELECTED
-    assert RationalWeight.sum(decision.target_weight for decision in decisions) == RationalWeight(1, 1)
+    assert RationalWeight.sum(
+        decision.target_weight for decision in decisions
+    ) == RationalWeight(1, 1)
 
 
 def test_no_eligible_symbol_is_all_cash_and_output_is_repeatable() -> None:
@@ -205,7 +218,10 @@ def test_no_eligible_symbol_is_all_cash_and_output_is_repeatable() -> None:
     assert len(first) == len(universe)
     assert all(decision.eligible is False for decision in first)
     assert all(decision.target_weight == RationalWeight.zero() for decision in first)
-    assert RationalWeight.sum(decision.target_weight for decision in first) == RationalWeight.zero()
+    assert (
+        RationalWeight.sum(decision.target_weight for decision in first)
+        == RationalWeight.zero()
+    )
     assert all(
         decision.exclusion_reason is StrategyExclusionReason.ASSET_NOT_TRADABLE
         for decision in first

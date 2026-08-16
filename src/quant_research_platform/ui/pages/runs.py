@@ -214,9 +214,7 @@ def _render_discovery(
     previous_clicked = bool(
         _call(ui, "button", "Previous run page", key="qrp-runs-previous")
     )
-    next_clicked = bool(
-        _call(ui, "button", "Next run page", key="qrp-runs-next")
-    )
+    next_clicked = bool(_call(ui, "button", "Next run page", key="qrp-runs-next"))
     if previous_clicked:
         _set(state, _STATE_PAGE, max(0, page_number - 1))
     elif next_clicked and page.has_next:

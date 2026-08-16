@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import io
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Mapping, Sequence
 from uuid import UUID
 
 import pytest
@@ -64,10 +64,10 @@ from quant_research_platform.domain.errors import (  # noqa: E402
     Ok,
 )
 from quant_research_platform.domain.execution import (  # noqa: E402
+    INITIAL_PORTFOLIO_EQUITY,
     CoreBacktestOutput,
     DailyReturn,
     FillRecord,
-    INITIAL_PORTFOLIO_EQUITY,
     OrderRecord,
     OrderStatus,
     PortfolioState,
@@ -109,12 +109,13 @@ from tests.integration.test_snapshot_ingestion_faults import (  # noqa: E402
     FixedJobClock,
     FixtureCalendar,
     OfflineYFinanceFixture,
+)
+from tests.integration.test_snapshot_ingestion_faults import (
     SnapshotParquetWriter as BaseSnapshotParquetWriter,
 )
 from tests.integration.test_zipline_bundle_rebuild import (  # noqa: E402
     _DeterministicWriter,
 )
-
 
 SECRET = "https://user:password@proxy.invalid"
 START = date(2023, 1, 3)
@@ -264,10 +265,7 @@ class SnapshotParquetWriter(BaseSnapshotParquetWriter):
             checksum = sha256_bytes(payload)
             relative_uri = f"objects/{schema_name}/sha256={checksum}.parquet"
             path = (
-                output_root
-                / "auxiliary"
-                / schema_name
-                / f"sha256={checksum}.parquet"
+                output_root / "auxiliary" / schema_name / f"sha256={checksum}.parquet"
             )
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(payload)
@@ -557,9 +555,7 @@ class LocalMomentumEngine:
                 Position(
                     symbol=symbol,
                     quantity=quantity,
-                    mark_price=quantize_money(
-                        bars[(symbol, session)]["raw_close"]
-                    ),
+                    mark_price=quantize_money(bars[(symbol, session)]["raw_close"]),
                     market_value=quantize_money(
                         quantity * Decimal(str(bars[(symbol, session)]["raw_close"]))
                     ),
@@ -567,7 +563,9 @@ class LocalMomentumEngine:
                 for symbol, quantity in sorted(holdings.items())
                 if quantity
             )
-            gross = quantize_money(sum((item.market_value for item in positions), Decimal("0")))
+            gross = quantize_money(
+                sum((item.market_value for item in positions), Decimal("0"))
+            )
             equity = quantize_money(cash + gross)
             state = PortfolioState(
                 session=session,
@@ -578,7 +576,11 @@ class LocalMomentumEngine:
                 leverage=(gross / equity).quantize(Decimal("0.000000000000000001")),
             )
             states.append(state)
-            return_value = Decimal("0") if prior_equity is None else equity / prior_equity - Decimal("1")
+            return_value = (
+                Decimal("0")
+                if prior_equity is None
+                else equity / prior_equity - Decimal("1")
+            )
             returns.append(DailyReturn(session=session, return_value=return_value))
             prior_equity = equity
 
@@ -606,8 +608,14 @@ class LocalMomentumEngine:
 
         orders: list[OrderRecord] = []
         for intent in order_intents.values():
-            filled = sum(fill.quantity for fill in fills if fill.order_id == intent.order_id)
-            status = OrderStatus.FILLED if filled == intent.requested_quantity else OrderStatus.UNFILLED
+            filled = sum(
+                fill.quantity for fill in fills if fill.order_id == intent.order_id
+            )
+            status = (
+                OrderStatus.FILLED
+                if filled == intent.requested_quantity
+                else OrderStatus.UNFILLED
+            )
             orders.append(
                 OrderRecord(
                     order_id=intent.order_id,
@@ -618,7 +626,9 @@ class LocalMomentumEngine:
                     ordinal=intent.ordinal,
                     decision_rank=intent.decision_rank,
                     status=status,
-                    unfilled_reason=None if status is OrderStatus.FILLED else "local execution remainder",
+                    unfilled_reason=None
+                    if status is OrderStatus.FILLED
+                    else "local execution remainder",
                 )
             )
         output = CoreBacktestOutput(
@@ -627,7 +637,9 @@ class LocalMomentumEngine:
             portfolio_states=tuple(states),
             daily_returns=tuple(returns),
             strategy_decisions=tuple(
-                sorted(all_decisions, key=lambda item: (item.signal_session, item.symbol))
+                sorted(
+                    all_decisions, key=lambda item: (item.signal_session, item.symbol)
+                )
             ),
         )
         self.last_output = output
@@ -739,10 +751,22 @@ class RunViews:
         values = {
             name: getattr(record, name)
             for name in (
-                "run_id", "mlflow_run_id", "snapshot_id", "state", "strategy_id",
-                "evaluation_start", "evaluation_end", "universe",
-                "configuration_checksum", "environment_checksum", "manifest_checksum",
-                "manifest_uri", "created_at", "started_at", "ended_at", "error_json",
+                "run_id",
+                "mlflow_run_id",
+                "snapshot_id",
+                "state",
+                "strategy_id",
+                "evaluation_start",
+                "evaluation_end",
+                "universe",
+                "configuration_checksum",
+                "environment_checksum",
+                "manifest_checksum",
+                "manifest_uri",
+                "created_at",
+                "started_at",
+                "ended_at",
+                "error_json",
                 "immutable",
             )
         }
@@ -775,7 +799,7 @@ def _config_yaml(root: Path) -> bytes:
         "  slippage_bps: 10\n"
         "runtime:\n"
         "  deterministic_seed: 7\n"
-    ).encode("utf-8")
+    ).encode()
 
 
 def _record_evaluation_artifacts(
@@ -794,9 +818,7 @@ def _record_evaluation_artifacts(
                 relative_uri=reference.relative_uri,
                 schema_version=artifact.schema_version,
                 row_count=(
-                    artifact.row_count
-                    if isinstance(artifact.row_count, int)
-                    else 0
+                    artifact.row_count if isinstance(artifact.row_count, int) else 0
                 ),
                 byte_size=artifact.byte_size,
                 media_type=artifact.media_type,
@@ -829,9 +851,7 @@ def _manifest_for_run(
             "strategy_id": config.strategy.identifier,
             "evaluation_range": result.evaluation_range.to_content_dict(),
             "configuration_checksum": sha256_bytes(canonical_json(non_secret)),
-            "artifact_checksums": {
-                item.role: item.checksum for item in links
-            },
+            "artifact_checksums": {item.role: item.checksum for item in links},
         },
         "snapshot_id": result.snapshot_id,
         "strategy_id": config.strategy.identifier,
@@ -885,7 +905,9 @@ class TrackingAdapter:
         return self.tracker.allocate_run(**values)
 
     def finalize_success(self, run: object, result: object) -> object:
-        links = _record_evaluation_artifacts(self.metadata, result.evaluation, datetime(2024, 2, 5, tzinfo=UTC))
+        links = _record_evaluation_artifacts(
+            self.metadata, result.evaluation, datetime(2024, 2, 5, tzinfo=UTC)
+        )
         manifest, payload, checksum = _manifest_for_run(result, self.config, links)
         staging = self.store.create_staging(f"manifest-{result.run_id}")
         staged = self.store.stage_bytes(
@@ -919,7 +941,11 @@ class TrackingAdapter:
             created_at=datetime(2024, 2, 5, tzinfo=UTC),
         )
         record = self.run_views.documents
-        identifier = result.run_id if isinstance(result.run_id, UUID) else UUID(str(result.run_id))
+        identifier = (
+            result.run_id
+            if isinstance(result.run_id, UUID)
+            else UUID(str(result.run_id))
+        )
         record[identifier] = {
             "manifest": manifest,
             "configuration": manifest["configuration"],
@@ -974,7 +1000,9 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
         snapshot_publisher=store,
         metadata=metadata,
         job_manager=jobs,
-        clock=type("Clock", (), {"utc_now": lambda self: datetime(2024, 2, 5, tzinfo=UTC)})(),
+        clock=type(
+            "Clock", (), {"utc_now": lambda self: datetime(2024, 2, 5, tzinfo=UTC)}
+        )(),
         sleep=lambda _: None,
         redactor=Redactor((SECRET,)),
     )
@@ -1013,8 +1041,7 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
     partial_manifest = partial.value.manifest
     assert partial_manifest is not None
     partial_roles = {
-        reference.object_kind
-        for reference in partial_manifest.content_identity.objects
+        reference.object_kind for reference in partial_manifest.content_identity.objects
     }
     assert {
         ObjectKind.RAW,
@@ -1037,9 +1064,14 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
     assert clean.value.failed_symbols == ()
     assert clean.value.gaps == ()
     assert clean.value.quarantined == ()
-    assert clean.value.limitation_disclosure.version == LimitationDisclosure.current().version
+    assert (
+        clean.value.limitation_disclosure.version
+        == LimitationDisclosure.current().version
+    )
     clean_manifest = clean.value.manifest
-    clean_roles = {reference.object_kind for reference in clean_manifest.content_identity.objects}
+    clean_roles = {
+        reference.object_kind for reference in clean_manifest.content_identity.objects
+    }
     assert clean_roles == {ObjectKind.RAW, ObjectKind.NORMALIZED}
     assert clean.value.snapshot_id != partial.value.snapshot_id
     assert isinstance(manager.open_verified(partial.value.snapshot_id), Ok)
@@ -1054,7 +1086,10 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
     inspected_snapshot = application.inspect_snapshot(clean.value.snapshot_id)
     assert isinstance(inspected_snapshot, Ok)
     assert inspected_snapshot.value.snapshot_id == clean.value.snapshot_id
-    assert inspected_snapshot.value.limitation_disclosure.version == LimitationDisclosure.current().version
+    assert (
+        inspected_snapshot.value.limitation_disclosure.version
+        == LimitationDisclosure.current().version
+    )
     assert inspected_snapshot.value.comparison_ready
 
     projection = PublishedProjection(store, [])
@@ -1078,7 +1113,11 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
     assert isinstance(same_bundle, Ok)
     assert same_bundle.value.bundle_checksum == bundle.value.bundle_checksum
     assert projection.calls
-    assert all("adjusted" not in column for call in projection.calls for column in call["columns"])
+    assert all(
+        "adjusted" not in column
+        for call in projection.calls
+        for column in call["columns"]
+    )
     assert all(
         call["session_start"] is not None and call["session_end"] is not None
         for call in projection.calls
@@ -1099,7 +1138,9 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
         parquet_store=reader,
         artifact_store=store,
     )
-    tracking = TrackingAdapter(tracker, resolution.value.view, metadata, store, run_views)
+    tracking = TrackingAdapter(
+        tracker, resolution.value.view, metadata, store, run_views
+    )
     backtest = BacktestService(
         tracker=tracking,
         snapshot_manager=manager,
@@ -1112,7 +1153,9 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
         ),
         engine=engine,
         evaluator=evaluator,
-        clock=type("Clock", (), {"utc_now": lambda self: datetime(2024, 2, 5, tzinfo=UTC)})(),
+        clock=type(
+            "Clock", (), {"utc_now": lambda self: datetime(2024, 2, 5, tzinfo=UTC)}
+        )(),
     )
 
     application.backtest_service = backtest
@@ -1126,29 +1169,60 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
     assert run_one.value.core_output.strategy_decisions
     assert run_one.value.core_output.orders
     assert run_one.value.core_output.fills
-    assert all(order.status is OrderStatus.FILLED for order in run_one.value.core_output.orders)
+    assert all(
+        order.status is OrderStatus.FILLED for order in run_one.value.core_output.orders
+    )
     evaluation = run_one.value.evaluation
     assert evaluation.spy_gaps == ()
     assert evaluation.strategy_equity and evaluation.benchmark_equity
     expected_roles = {
-        "benchmark_returns", "benchmark_equity", "chart_drawdown", "chart_equity_curve",
-        "chart_monthly_returns", "decisions", "drawdown", "fills", "metrics",
-        "monthly_returns", "orders", "portfolio", "positions", "strategy_equity",
-        "strategy_returns", "transactions",
+        "benchmark_returns",
+        "benchmark_equity",
+        "chart_drawdown",
+        "chart_equity_curve",
+        "chart_monthly_returns",
+        "decisions",
+        "drawdown",
+        "fills",
+        "metrics",
+        "monthly_returns",
+        "orders",
+        "portfolio",
+        "positions",
+        "strategy_equity",
+        "strategy_returns",
+        "transactions",
     }
     assert set(evaluation.artifacts.roles) == expected_roles
-    assert all(len(artifact.payload) == artifact.byte_size for artifact in evaluation.artifacts)
-    assert all(sha256_bytes(artifact.payload) == artifact.checksum for artifact in evaluation.artifacts)
-    assert evaluation.limitation_disclosure.version == LimitationDisclosure.current().version
+    assert all(
+        len(artifact.payload) == artifact.byte_size for artifact in evaluation.artifacts
+    )
+    assert all(
+        sha256_bytes(artifact.payload) == artifact.checksum
+        for artifact in evaluation.artifacts
+    )
+    assert (
+        evaluation.limitation_disclosure.version
+        == LimitationDisclosure.current().version
+    )
     assert any(call["kind"] == "history" for call in reader.calls)
     assert all(
-        max((row["session"] for row in reader._rows(
-            reader._normalized_refs(manager.open_verified(clean.value.snapshot_id).value),
-            call["columns"],
-            symbols=call["symbols"],
-            session_start=call["session_start"],
-            session_end=call["session_end"],
-        )), default=call["session_end"]) <= call["session_end"]
+        max(
+            (
+                row["session"]
+                for row in reader._rows(
+                    reader._normalized_refs(
+                        manager.open_verified(clean.value.snapshot_id).value
+                    ),
+                    call["columns"],
+                    symbols=call["symbols"],
+                    session_start=call["session_start"],
+                    session_end=call["session_end"],
+                )
+            ),
+            default=call["session_end"],
+        )
+        <= call["session_end"]
         for call in reader.calls
         if call["kind"] == "history"
     )
@@ -1156,7 +1230,10 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
     run_two = application.run_backtest(backtest_request, handle)
     assert isinstance(run_two, Ok), run_two
     assert run_one.value.run_id != run_two.value.run_id
-    assert run_one.value.core_output.to_scientific_dict() == run_two.value.core_output.to_scientific_dict()
+    assert (
+        run_one.value.core_output.to_scientific_dict()
+        == run_two.value.core_output.to_scientific_dict()
+    )
     evaluation_two = run_two.value.evaluation
     assert evaluation.artifact_checksums == evaluation_two.artifact_checksums
     assert evaluation.strategy_equity == evaluation_two.strategy_equity
@@ -1190,18 +1267,29 @@ def test_offline_phase1_pipeline_is_complete_redacted_and_reproducible(
 
     inspected_run = application.inspect_run(run_one.value.run_id)
     assert isinstance(inspected_run, Ok)
-    assert inspected_run.value.limitation_disclosure.version == LimitationDisclosure.current().version
+    assert (
+        inspected_run.value.limitation_disclosure.version
+        == LimitationDisclosure.current().version
+    )
     assert SECRET not in repr(inspected_run.value)
     artifact_checksum = evaluation.artifacts["strategy_equity"].checksum
     opened_artifact = application.open_artifact(artifact_checksum)
     assert isinstance(opened_artifact, Ok)
-    assert b"".join(opened_artifact.value.stream()) == evaluation.artifacts["strategy_equity"].payload
+    assert (
+        b"".join(opened_artifact.value.stream())
+        == evaluation.artifacts["strategy_equity"].payload
+    )
 
     compared = application.compare_runs((run_one.value.run_id, run_two.value.run_id))
     assert isinstance(compared, Ok), compared
     assert compared.value.aligned_sessions
-    assert compared.value.artifact_checksum == sha256_bytes(compared.value.artifact.bytes)
-    assert compared.value.limitation_disclosure.version == LimitationDisclosure.current().version
+    assert compared.value.artifact_checksum == sha256_bytes(
+        compared.value.artifact.bytes
+    )
+    assert (
+        compared.value.limitation_disclosure.version
+        == LimitationDisclosure.current().version
+    )
     assert SECRET not in repr(compared.value)
 
     assert all(SECRET not in repr(item) for item in progress)

@@ -122,7 +122,9 @@ def _metrics(scope: MetricScope, seed: int) -> EvaluationMetrics:
     return EvaluationMetrics(scope, tuple(values))
 
 
-def _curve(sessions: Sequence[date], seed: int, multiplier: int) -> tuple[tuple[date, Decimal], ...]:
+def _curve(
+    sessions: Sequence[date], seed: int, multiplier: int
+) -> tuple[tuple[date, Decimal], ...]:
     return tuple(
         (session, Decimal(100_000 + seed * 100 + ordinal * multiplier))
         for ordinal, session in enumerate(sessions)
@@ -266,22 +268,46 @@ def comparison_cases(draw: st.DrawFn) -> ComparisonCase:
         for offset in range(common_count)
     )
     prefixes = draw(
-        st.lists(st.integers(min_value=0, max_value=2), min_size=record_count, max_size=record_count)
+        st.lists(
+            st.integers(min_value=0, max_value=2),
+            min_size=record_count,
+            max_size=record_count,
+        )
     )
     suffixes = draw(
-        st.lists(st.integers(min_value=0, max_value=2), min_size=record_count, max_size=record_count)
+        st.lists(
+            st.integers(min_value=0, max_value=2),
+            min_size=record_count,
+            max_size=record_count,
+        )
     )
     snapshot_variants = draw(
-        st.lists(st.integers(min_value=0, max_value=2), min_size=record_count, max_size=record_count)
+        st.lists(
+            st.integers(min_value=0, max_value=2),
+            min_size=record_count,
+            max_size=record_count,
+        )
     )
     configuration_variants = draw(
-        st.lists(st.integers(min_value=0, max_value=2), min_size=record_count, max_size=record_count)
+        st.lists(
+            st.integers(min_value=0, max_value=2),
+            min_size=record_count,
+            max_size=record_count,
+        )
     )
     environment_variants = draw(
-        st.lists(st.integers(min_value=0, max_value=2), min_size=record_count, max_size=record_count)
+        st.lists(
+            st.integers(min_value=0, max_value=2),
+            min_size=record_count,
+            max_size=record_count,
+        )
     )
     metric_variants = draw(
-        st.lists(st.integers(min_value=0, max_value=9), min_size=record_count, max_size=record_count)
+        st.lists(
+            st.integers(min_value=0, max_value=9),
+            min_size=record_count,
+            max_size=record_count,
+        )
     )
 
     records: dict[UUID, object] = {}
@@ -310,7 +336,9 @@ def comparison_cases(draw: st.DrawFn) -> ComparisonCase:
             },
             "configuration": {
                 "strategy": {"position_count": 1 + configuration_variants[index]},
-                "secrets": {"https_proxy": f"secret-{index}-{configuration_variants[index]}"},
+                "secrets": {
+                    "https_proxy": f"secret-{index}-{configuration_variants[index]}"
+                },
             },
             "environment_fingerprint": {
                 "python_version": "3.11",
@@ -406,8 +434,13 @@ def test_comparison_validation_and_alignment_preserve_provenance(
         _reference_provenance_differences(case.selection, case.records)
     )
     assert _difference_projection(output.snapshot_differences) == expected_snapshot
-    assert _difference_projection(output.configuration_differences) == expected_configuration
-    assert _difference_projection(output.environment_differences) == expected_environment
+    assert (
+        _difference_projection(output.configuration_differences)
+        == expected_configuration
+    )
+    assert (
+        _difference_projection(output.environment_differences) == expected_environment
+    )
 
     for comparison_run, run_id in zip(output.runs, case.selection, strict=True):
         record = cast(Any, case.records[run_id])
@@ -421,13 +454,22 @@ def test_comparison_validation_and_alignment_preserve_provenance(
         assert comparison_run.benchmark_metrics == record.evaluation.benchmark_metrics
         expected_sessions = set(output.aligned_sessions)
         assert tuple(session for session, _ in comparison_run.strategy_curve) == tuple(
-            session for session, _ in record.strategy_equity if session in expected_sessions
+            session
+            for session, _ in record.strategy_equity
+            if session in expected_sessions
         )
         assert tuple(session for session, _ in comparison_run.benchmark_curve) == tuple(
-            session for session, _ in record.benchmark_equity if session in expected_sessions
+            session
+            for session, _ in record.benchmark_equity
+            if session in expected_sessions
         )
-        assert all(session in expected_sessions for session, _ in comparison_run.strategy_curve)
-        assert all(session in expected_sessions for session, _ in comparison_run.benchmark_curve)
+        assert all(
+            session in expected_sessions for session, _ in comparison_run.strategy_curve
+        )
+        assert all(
+            session in expected_sessions
+            for session, _ in comparison_run.benchmark_curve
+        )
 
     assert output.artifact.checksum == sha256(output.artifact.payload).hexdigest()
     assert output.artifact.payload.endswith(b"\n")

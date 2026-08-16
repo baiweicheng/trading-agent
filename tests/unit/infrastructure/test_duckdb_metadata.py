@@ -8,15 +8,15 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from quant_research_platform.domain.evaluation import (
-    MetricScope,
-    calculate_evaluation_metrics,
-    strategy_minus_benchmark,
-)
 from quant_research_platform.domain.errors import (
     ActionableError,
     ErrorCategory,
     LimitationDisclosure,
+)
+from quant_research_platform.domain.evaluation import (
+    MetricScope,
+    calculate_evaluation_metrics,
+    strategy_minus_benchmark,
 )
 from quant_research_platform.domain.execution import (
     JobOperation,
@@ -181,7 +181,9 @@ def _successful_finalization() -> RunFinalization:
     )
 
 
-def test_migrates_persists_and_reopens_all_operational_indexes(tmp_path: object) -> None:
+def test_migrates_persists_and_reopens_all_operational_indexes(
+    tmp_path: object,
+) -> None:
     database_path = tmp_path / "metadata.duckdb"  # type: ignore[operator]
     job_id = UUID("00000000-0000-0000-0000-000000000001")
     manifest = _snapshot()
@@ -193,14 +195,18 @@ def test_migrates_persists_and_reopens_all_operational_indexes(tmp_path: object)
             manifest_uri=f"snapshots/{manifest.snapshot_id}/manifest.json",
             symbol_statuses=(_symbol_status(),),
         )
-        store.record_provider_batch(job_id=job_id, result=_provider_result(), occurred_at=_NOW)
+        store.record_provider_batch(
+            job_id=job_id, result=_provider_result(), occurred_at=_NOW
+        )
 
     with DuckDBMetadataStore(database_path) as reopened:
         persisted_job = reopened.get_job(job_id)
         persisted_snapshot = reopened.get_snapshot(manifest.snapshot_id)
         assert persisted_job.state is JobState.NOT_STARTED
         assert persisted_snapshot.manifest_checksum == manifest.manifest_checksum
-        assert reopened.list_snapshot_objects(manifest.snapshot_id)[0].checksum == _checksum("a")
+        assert reopened.list_snapshot_objects(manifest.snapshot_id)[
+            0
+        ].checksum == _checksum("a")
 
 
 def test_transaction_rolls_back_nested_repository_writes(tmp_path: object) -> None:
@@ -208,10 +214,9 @@ def test_transaction_rolls_back_nested_repository_writes(tmp_path: object) -> No
     job_id = uuid4()
     store = DuckDBMetadataStore(database_path)
 
-    with pytest.raises(RuntimeError, match="rollback"):
-        with store.transaction():
-            store.create_job(_not_started(job_id), updated_at=_NOW)
-            raise RuntimeError("rollback")
+    with pytest.raises(RuntimeError, match="rollback"), store.transaction():
+        store.create_job(_not_started(job_id), updated_at=_NOW)
+        raise RuntimeError("rollback")
 
     with pytest.raises(MetadataNotFoundError):
         store.get_job(job_id)
@@ -219,7 +224,9 @@ def test_transaction_rolls_back_nested_repository_writes(tmp_path: object) -> No
     store.close()
 
 
-def test_snapshot_science_is_insert_only_but_availability_is_operational(tmp_path: object) -> None:
+def test_snapshot_science_is_insert_only_but_availability_is_operational(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     first = _snapshot()
     replay = _snapshot(created_at=_NOW + timedelta(hours=1))
@@ -242,7 +249,9 @@ def test_snapshot_science_is_insert_only_but_availability_is_operational(tmp_pat
 
     assert unavailable.availability is SnapshotAvailability.INVALID
     assert unavailable.manifest_uri == first_uri
-    assert store.list_snapshots(availability=SnapshotAvailability.INVALID) == (unavailable,)
+    assert store.list_snapshots(availability=SnapshotAvailability.INVALID) == (
+        unavailable,
+    )
     store.close()
 
 
@@ -367,7 +376,9 @@ def _create_running_run(store: DuckDBMetadataStore, run_id: UUID) -> None:
     )
 
 
-def test_successful_finalization_and_identical_replay_are_idempotent(tmp_path: object) -> None:
+def test_successful_finalization_and_identical_replay_are_idempotent(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     run_id = uuid4()
     _create_running_run(store, run_id)
@@ -376,8 +387,12 @@ def test_successful_finalization_and_identical_replay_are_idempotent(tmp_path: o
     intent = store.create_finalization_intent(run_id, finalization, created_at=_NOW)
     assert intent.terminal_payload_checksum == finalization.payload_checksum
     store.mark_finalization_mlflow_synced(run_id, attempted_at=_NOW)
-    terminal = store.finalize_run(run_id, finalization, ended_at=_NOW + timedelta(seconds=1))
-    replay = store.finalize_run(run_id, finalization, ended_at=_NOW + timedelta(seconds=2))
+    terminal = store.finalize_run(
+        run_id, finalization, ended_at=_NOW + timedelta(seconds=1)
+    )
+    replay = store.finalize_run(
+        run_id, finalization, ended_at=_NOW + timedelta(seconds=2)
+    )
 
     assert terminal == replay
     assert replay.state is RunState.SUCCEEDED
@@ -385,14 +400,18 @@ def test_successful_finalization_and_identical_replay_are_idempotent(tmp_path: o
     store.close()
 
 
-def test_conflicting_terminal_payload_is_rejected_without_mutation(tmp_path: object) -> None:
+def test_conflicting_terminal_payload_is_rejected_without_mutation(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     run_id = uuid4()
     _create_running_run(store, run_id)
     finalization = _successful_finalization()
     store.create_finalization_intent(run_id, finalization, created_at=_NOW)
     store.mark_finalization_mlflow_synced(run_id, attempted_at=_NOW)
-    terminal = store.finalize_run(run_id, finalization, ended_at=_NOW + timedelta(seconds=1))
+    terminal = store.finalize_run(
+        run_id, finalization, ended_at=_NOW + timedelta(seconds=1)
+    )
 
     conflicting = RunFinalization(
         desired_state=RunState.SUCCEEDED,
@@ -431,13 +450,17 @@ def test_failed_mlflow_sync_keeps_intent_running_and_recovers(tmp_path: object) 
         run_id,
         attempted_at=_NOW + timedelta(seconds=1),
     )
-    recovered = store.finalize_run(run_id, finalization, ended_at=_NOW + timedelta(seconds=2))
+    recovered = store.finalize_run(
+        run_id, finalization, ended_at=_NOW + timedelta(seconds=2)
+    )
     assert recovered.state is RunState.FAILED
     assert store.pending_finalizations() == ()
     store.close()
 
 
-def test_terminal_transition_requires_intent_and_rejects_illegal_payload(tmp_path: object) -> None:
+def test_terminal_transition_requires_intent_and_rejects_illegal_payload(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     run_id = uuid4()
     _create_running_run(store, run_id)
@@ -539,14 +562,14 @@ def test_run_discovery_supports_all_filters_successful_candidates_and_index_proj
         )
 
     # Each individual filter is applied to the indexed metadata projection.
-    assert [item.run_id for item in store.search_runs(
-        RunQuery(run_id=run_specs[0][0])
-    ).records] == [
-        run_specs[0][0]
-    ]
-    assert [item.run_id for item in store.search_runs(
-        RunQuery(snapshot_id=snapshot_a)
-    ).records] == [
+    assert [
+        item.run_id
+        for item in store.search_runs(RunQuery(run_id=run_specs[0][0])).records
+    ] == [run_specs[0][0]]
+    assert [
+        item.run_id
+        for item in store.search_runs(RunQuery(snapshot_id=snapshot_a)).records
+    ] == [
         run_specs[1][0],
         run_specs[0][0],
     ]
@@ -565,8 +588,7 @@ def test_run_discovery_supports_all_filters_successful_candidates_and_index_proj
         for item in store.search_runs(RunQuery(evaluation_start=_START)).records
     ] == [run_specs[2][0], run_specs[0][0]]
     assert [
-        item.run_id
-        for item in store.search_runs(RunQuery(evaluation_end=_END)).records
+        item.run_id for item in store.search_runs(RunQuery(evaluation_end=_END)).records
     ] == [run_specs[2][0], run_specs[0][0]]
     assert [
         item.run_id

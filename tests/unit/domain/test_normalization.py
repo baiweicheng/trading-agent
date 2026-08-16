@@ -156,9 +156,7 @@ def test_dividend_uses_prior_close_and_does_not_change_volume() -> None:
     )
     candidate = _bars(result)[1]
 
-    assert candidate.cumulative_price_factor == Decimal(
-        "1.010101010101010101"
-    )
+    assert candidate.cumulative_price_factor == Decimal("1.010101010101010101")
     assert candidate.adjusted_open == Decimal("99.99999999999999999999999999")
     assert candidate.adjusted_close == Decimal("99.99999999999999999999999999")
     assert candidate.adjusted_volume == Decimal("1000")
@@ -187,9 +185,7 @@ def test_same_session_split_is_applied_before_dividend() -> None:
     )
     candidate = _bars(result)[1]
 
-    assert candidate.cumulative_price_factor == Decimal(
-        "2.040816326530612245"
-    )
+    assert candidate.cumulative_price_factor == Decimal("2.040816326530612245")
     assert candidate.adjusted_close == Decimal("100")
     assert candidate.adjusted_volume == Decimal("100")
     assert candidate.corporate_action.source_fields == (
@@ -219,8 +215,9 @@ def test_invalid_action_equations_are_quarantined_without_a_candidate() -> None:
     )
 
 
-def test_non_session_is_quarantined_and_wholly_absent_observation_emits_no_bar(
-) -> None:
+def test_non_session_is_quarantined_and_wholly_absent_observation_emits_no_bar() -> (
+    None
+):
     non_session = date(2024, 1, 1)
     missing = date(2024, 1, 2)
     present = date(2024, 1, 3)
@@ -237,9 +234,7 @@ def test_non_session_is_quarantined_and_wholly_absent_observation_emits_no_bar(
         ),
         _record(present),
     ]
-    result = list(
-        Normalizer().normalize(records, FixtureCalendar((missing, present)))
-    )
+    result = list(Normalizer().normalize(records, FixtureCalendar((missing, present))))
 
     assert len(_bars(result)) == 1
     assert len(_quarantines(result)) == 1
@@ -317,8 +312,9 @@ def test_non_positive_split_ratio_is_quarantined_without_a_candidate() -> None:
     )
 
 
-def test_dividend_without_a_prior_raw_close_is_quarantined_without_a_candidate(
-) -> None:
+def test_dividend_without_a_prior_raw_close_is_quarantined_without_a_candidate() -> (
+    None
+):
     session = date(2024, 1, 2)
     result = list(
         Normalizer().normalize(

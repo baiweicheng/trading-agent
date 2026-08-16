@@ -147,8 +147,12 @@ def _performance_metrics(
     if not equity:
         return {
             MetricName.TOTAL_RETURN: _null(MetricNullReason.NO_EVALUATION_SESSIONS),
-            MetricName.COMPOUND_ANNUAL_GROWTH_RATE: _null(MetricNullReason.NO_EVALUATION_SESSIONS),
-            MetricName.ANNUALIZED_VOLATILITY: _null(MetricNullReason.NO_EVALUATION_SESSIONS),
+            MetricName.COMPOUND_ANNUAL_GROWTH_RATE: _null(
+                MetricNullReason.NO_EVALUATION_SESSIONS
+            ),
+            MetricName.ANNUALIZED_VOLATILITY: _null(
+                MetricNullReason.NO_EVALUATION_SESSIONS
+            ),
             MetricName.SHARPE_RATIO: _null(MetricNullReason.NO_EVALUATION_SESSIONS),
             MetricName.MAXIMUM_DRAWDOWN: _null(MetricNullReason.NO_EVALUATION_SESSIONS),
         }
@@ -163,15 +167,19 @@ def _performance_metrics(
         with localcontext() as context:
             context.prec = 40
             cagr = (
-                equity[-1] / equity[0]
-            ) ** (Decimal(252) / Decimal(len(returns))) - _ONE, None
+                (equity[-1] / equity[0]) ** (Decimal(252) / Decimal(len(returns)))
+                - _ONE,
+                None,
+            )
 
     if len(returns) < 2:
         volatility = _null(MetricNullReason.INSUFFICIENT_OBSERVATIONS)
         sharpe = _null(MetricNullReason.INSUFFICIENT_OBSERVATIONS)
     else:
         mean = sum(returns, _ZERO) / Decimal(len(returns))
-        variance = sum(((value - mean) ** 2 for value in returns), _ZERO) / Decimal(len(returns) - 1)
+        variance = sum(((value - mean) ** 2 for value in returns), _ZERO) / Decimal(
+            len(returns) - 1
+        )
         with localcontext() as context:
             context.prec = 40
             standard_deviation = variance.sqrt()
@@ -235,9 +243,13 @@ def _reference_differences(
         strategy_value, strategy_reason = strategy[name]
         benchmark_value, benchmark_reason = benchmark[name]
         if strategy_value is None:
-            result[name] = _null(strategy_reason or MetricNullReason.NO_EVALUATION_SESSIONS)
+            result[name] = _null(
+                strategy_reason or MetricNullReason.NO_EVALUATION_SESSIONS
+            )
         elif benchmark_value is None:
-            result[name] = _null(benchmark_reason or MetricNullReason.NO_EVALUATION_SESSIONS)
+            result[name] = _null(
+                benchmark_reason or MetricNullReason.NO_EVALUATION_SESSIONS
+            )
         else:
             assert isinstance(strategy_value, Decimal)
             assert isinstance(benchmark_value, Decimal)
@@ -285,10 +297,7 @@ def _make_fill(case: EvaluationCase) -> tuple[OrderRecord, FillRecord]:
         ordinal=0,
         status=OrderStatus.FILLED,
     )
-    fill_price = quantize_money(
-        case.fill_base_open
-        * (_ONE + case.slippage_bps / _BPS)
-    )
+    fill_price = quantize_money(case.fill_base_open * (_ONE + case.slippage_bps / _BPS))
     fill = FillRecord(
         fill_id=deterministic_fill_id(
             order_id=order_id,
@@ -348,7 +357,9 @@ def _core_output(case: EvaluationCase, *, reverse: bool = False) -> SimpleNamesp
 def _snapshot(case: EvaluationCase, *, reverse: bool = False) -> SimpleNamespace:
     bars = [
         {"session": session, "adjusted_close": price}
-        for index, (session, price) in enumerate(zip(case.sessions, case.spy_prices, strict=True))
+        for index, (session, price) in enumerate(
+            zip(case.sessions, case.spy_prices, strict=True)
+        )
         if index not in case.spy_gap_indices
     ]
     if reverse:
@@ -403,7 +414,9 @@ def test_evaluation_is_aligned_gap_safe_and_deterministic(case: EvaluationCase) 
             if index in case.spy_gap_indices
         )
         assert tuple(error.session for error in first.errors) == expected_missing
-        assert all(error.category is ErrorCategory.VALIDATION_GAP for error in first.errors)
+        assert all(
+            error.category is ErrorCategory.VALIDATION_GAP for error in first.errors
+        )
         assert all(error.symbol == "SPY" for error in first.errors)
         assert len(first.errors) == len(case.spy_gap_indices)
         return
@@ -430,14 +443,26 @@ def test_evaluation_is_aligned_gap_safe_and_deterministic(case: EvaluationCase) 
 
     assert evaluated.evaluation_range == evaluation_range
     assert tuple(item.session for item in evaluated.strategy_returns) == case.sessions
-    assert tuple(item.return_value for item in evaluated.strategy_returns) == strategy_returns
+    assert (
+        tuple(item.return_value for item in evaluated.strategy_returns)
+        == strategy_returns
+    )
     assert tuple(item.session for item in evaluated.benchmark_returns) == case.sessions
-    assert tuple(item.return_value for item in evaluated.benchmark_returns) == benchmark_returns
-    assert tuple(evaluated.strategy_equity) == tuple(zip(case.sessions, case.strategy_equity, strict=True))
-    assert tuple(evaluated.benchmark_equity) == tuple(zip(case.sessions, benchmark_equity, strict=True))
+    assert (
+        tuple(item.return_value for item in evaluated.benchmark_returns)
+        == benchmark_returns
+    )
+    assert tuple(evaluated.strategy_equity) == tuple(
+        zip(case.sessions, case.strategy_equity, strict=True)
+    )
+    assert tuple(evaluated.benchmark_equity) == tuple(
+        zip(case.sessions, benchmark_equity, strict=True)
+    )
 
     _assert_metric_set(evaluated.evaluation_result.strategy_metrics, expected_strategy)
-    _assert_metric_set(evaluated.evaluation_result.benchmark_metrics, expected_benchmark)
+    _assert_metric_set(
+        evaluated.evaluation_result.benchmark_metrics, expected_benchmark
+    )
     _assert_metric_set(evaluated.evaluation_result.differences, expected_difference)
     assert evaluated.total_commissions == fill.commission
     assert evaluated.total_slippage == fill.slippage_cost
@@ -445,12 +470,20 @@ def test_evaluation_is_aligned_gap_safe_and_deterministic(case: EvaluationCase) 
 
     expected_strategy_monthly = _monthly_reference(case.sessions, strategy_returns)
     expected_benchmark_monthly = _monthly_reference(case.sessions, benchmark_returns)
-    assert tuple(
-        (item.month, item.return_value) for item in evaluated.strategy_monthly_returns
-    ) == expected_strategy_monthly
-    assert tuple(
-        (item.month, item.return_value) for item in evaluated.benchmark_monthly_returns
-    ) == expected_benchmark_monthly
+    assert (
+        tuple(
+            (item.month, item.return_value)
+            for item in evaluated.strategy_monthly_returns
+        )
+        == expected_strategy_monthly
+    )
+    assert (
+        tuple(
+            (item.month, item.return_value)
+            for item in evaluated.benchmark_monthly_returns
+        )
+        == expected_benchmark_monthly
+    )
 
     second = EvaluationService().evaluate(
         _core_output(case, reverse=True),

@@ -31,7 +31,6 @@ from quant_research_platform.infrastructure.filesystem_store import (
     SnapshotPublicationCandidate,
 )
 
-
 _INTERRUPTION_POINTS = (
     "before_snapshot_object_checksum",
     "after_snapshot_object_checksum",
@@ -221,8 +220,7 @@ def _manifest(
         object_kind=ObjectKind.NORMALIZED,
         checksum=object_checksum,
         relative_uri=(
-            "objects/normalized/symbol=AAPL/year=2024/"
-            f"sha256={object_checksum}.parquet"
+            f"objects/normalized/symbol=AAPL/year=2024/sha256={object_checksum}.parquet"
         ),
         schema_version="daily_bar_v1",
         row_count=1,
@@ -390,7 +388,9 @@ def test_publication_and_immutability_state_machine_preserves_last_valid_snapsho
             except RuntimeError as error:
                 assert str(error) == f"injected interruption: {case.interruption_point}"
             else:
-                raise AssertionError("the sampled publication interruption was not reached")
+                raise AssertionError(
+                    "the sampled publication interruption was not reached"
+                )
             assert fired
 
             # A filesystem reader can discover only complete directories.  A
@@ -403,15 +403,13 @@ def test_publication_and_immutability_state_machine_preserves_last_valid_snapsho
                 candidate.snapshot_id,
             }
             complete_orphan = case.interruption_point in _COMPLETE_ORPHAN_POINTS
-            assert (candidate.snapshot_id in visible_before_reconcile) is complete_orphan
+            assert (
+                candidate.snapshot_id in visible_before_reconcile
+            ) is complete_orphan
 
             indexed_reader = SnapshotManager(storage=store, metadata=metadata)
             assert isinstance(indexed_reader.open_verified(previous.snapshot_id), Ok)
-            if complete_orphan and case.interruption_point != "after_duckdb_commit":
-                assert isinstance(
-                    indexed_reader.open_verified(candidate.snapshot_id), Err
-                )
-            elif not complete_orphan:
+            if complete_orphan and case.interruption_point != "after_duckdb_commit" or not complete_orphan:
                 assert isinstance(
                     indexed_reader.open_verified(candidate.snapshot_id), Err
                 )
@@ -467,24 +465,36 @@ def test_publication_and_immutability_state_machine_preserves_last_valid_snapsho
                 )
 
             if any(command.name == "partial" for command in case.commands):
-                assert partial_manifest.snapshot_id not in restarted.list_published_manifest_ids()
+                assert (
+                    partial_manifest.snapshot_id
+                    not in restarted.list_published_manifest_ids()
+                )
                 assert isinstance(
                     SnapshotManager(storage=restarted).open_verified(
                         partial_manifest.snapshot_id
                     ),
                     Err,
                 )
-                assert partial_manifest.snapshot_id in reconciliation.ignored_publication_ids
+                assert (
+                    partial_manifest.snapshot_id
+                    in reconciliation.ignored_publication_ids
+                )
 
             if corrupt_manifest is not None:
-                assert corrupt_manifest.snapshot_id not in restarted.list_published_manifest_ids()
+                assert (
+                    corrupt_manifest.snapshot_id
+                    not in restarted.list_published_manifest_ids()
+                )
                 assert isinstance(
                     SnapshotManager(storage=restarted).open_verified(
                         corrupt_manifest.snapshot_id
                     ),
                     Err,
                 )
-                assert corrupt_manifest.snapshot_id in reconciliation.ignored_publication_ids
+                assert (
+                    corrupt_manifest.snapshot_id
+                    in reconciliation.ignored_publication_ids
+                )
 
             # Every generated mutation command is routed through the immutable
             # application guard; no command can replace, delete, or update the

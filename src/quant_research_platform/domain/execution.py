@@ -147,9 +147,7 @@ def _clean_text(name: str, value: str | None) -> str | None:
 _T = TypeVar("_T", bound=Enum)
 
 
-def _coerce_enum(
-    enum_type: type[_T], name: str, value: _T | str
-) -> _T:
+def _coerce_enum(enum_type: type[_T], name: str, value: _T | str) -> _T:
     try:
         return enum_type(value)
     except ValueError as error:
@@ -267,7 +265,10 @@ class OrderRecord:
         reason = _clean_text("unfilled_reason", self.unfilled_reason)
         if status in {OrderStatus.PENDING, OrderStatus.FILLED} and reason is not None:
             raise ValueError(f"{status.value} orders must not have an unfilled_reason")
-        if status in {OrderStatus.PARTIALLY_FILLED, OrderStatus.UNFILLED} and reason is None:
+        if (
+            status in {OrderStatus.PARTIALLY_FILLED, OrderStatus.UNFILLED}
+            and reason is None
+        ):
             raise ValueError(f"{status.value} orders require an unfilled_reason")
 
         expected_id = deterministic_order_id(
@@ -278,7 +279,9 @@ class OrderRecord:
             ordinal=ordinal,
         )
         if self.order_id != expected_id:
-            raise ValueError("order_id does not match its deterministic scientific inputs")
+            raise ValueError(
+                "order_id does not match its deterministic scientific inputs"
+            )
         object.__setattr__(self, "signal_session", signal_session)
         object.__setattr__(self, "execution_session", execution_session)
         object.__setattr__(self, "symbol", symbol)
@@ -318,7 +321,10 @@ class FillRecord:
     slippage_cost: Decimal
 
     def __post_init__(self) -> None:
-        if not isinstance(self.order_id, str) or _ORDER_ID_PATTERN.fullmatch(self.order_id) is None:
+        if (
+            not isinstance(self.order_id, str)
+            or _ORDER_ID_PATTERN.fullmatch(self.order_id) is None
+        ):
             raise ValueError("order_id must be a deterministic order ID")
         symbol = _normalize_symbol(self.symbol)
         session = _require_date("session", self.session)
@@ -334,7 +340,9 @@ class FillRecord:
             ordinal=ordinal,
         )
         if self.fill_id != expected_id:
-            raise ValueError("fill_id does not match its deterministic scientific inputs")
+            raise ValueError(
+                "fill_id does not match its deterministic scientific inputs"
+            )
 
         base_open = quantize_money(self.base_adjusted_open)
         fill_price = quantize_money(self.fill_price)
@@ -355,7 +363,9 @@ class FillRecord:
             raise ValueError("commission and slippage_cost must be non-negative")
         expected_slippage = quantize_money(abs(fill_price - base_open) * abs(quantity))
         if slippage_cost != expected_slippage:
-            raise ValueError("slippage_cost must equal adverse price difference times quantity")
+            raise ValueError(
+                "slippage_cost must equal adverse price difference times quantity"
+            )
 
         object.__setattr__(self, "symbol", symbol)
         object.__setattr__(self, "session", session)
@@ -445,16 +455,22 @@ class PortfolioState:
         )
         gross_exposure = quantize_money(self.gross_exposure)
         if gross_exposure != expected_gross:
-            raise ValueError("gross_exposure must equal the sum of marked position values")
+            raise ValueError(
+                "gross_exposure must equal the sum of marked position values"
+            )
         portfolio_equity = quantize_money(self.portfolio_equity)
         if portfolio_equity != quantize_money(cash_balance + gross_exposure):
-            raise ValueError("portfolio_equity must equal cash_balance plus gross_exposure")
+            raise ValueError(
+                "portfolio_equity must equal cash_balance plus gross_exposure"
+            )
         if portfolio_equity <= 0:
             raise ValueError("portfolio_equity must be positive")
         leverage = _quantize_leverage(self.leverage)
         expected_leverage = _quantize_leverage(gross_exposure / portfolio_equity)
         if leverage != expected_leverage:
-            raise ValueError("leverage must equal gross_exposure divided by portfolio_equity")
+            raise ValueError(
+                "leverage must equal gross_exposure divided by portfolio_equity"
+            )
         if not Decimal("0") <= leverage <= Decimal("1"):
             raise ValueError("leverage must be between 0 and 1")
 
@@ -509,7 +525,9 @@ class CoreBacktestOutput:
         self._validate_tuple("fills", self.fills, FillRecord)
         self._validate_tuple("portfolio_states", self.portfolio_states, PortfolioState)
         self._validate_tuple("daily_returns", self.daily_returns, DailyReturn)
-        self._validate_tuple("strategy_decisions", self.strategy_decisions, StrategyDecision)
+        self._validate_tuple(
+            "strategy_decisions", self.strategy_decisions, StrategyDecision
+        )
         initial_equity = quantize_money(self.initial_equity)
         if initial_equity != INITIAL_PORTFOLIO_EQUITY:
             raise ValueError("initial_equity must be fixed at USD 100000.000000")
@@ -538,12 +556,17 @@ class CoreBacktestOutput:
         self._validate_session_order("daily_returns", return_sessions)
         state_sessions = {state.session for state in self.portfolio_states}
         if any(session not in state_sessions for session in return_sessions):
-            raise ValueError("daily_returns must correspond to portfolio state sessions")
+            raise ValueError(
+                "daily_returns must correspond to portfolio state sessions"
+            )
         decision_keys = tuple(
-            (decision.signal_session, decision.symbol) for decision in self.strategy_decisions
+            (decision.signal_session, decision.symbol)
+            for decision in self.strategy_decisions
         )
         if len(decision_keys) != len(set(decision_keys)):
-            raise ValueError("strategy_decisions must be unique per signal session and symbol")
+            raise ValueError(
+                "strategy_decisions must be unique per signal session and symbol"
+            )
 
     @staticmethod
     def _validate_tuple(name: str, values: object, expected_type: type[object]) -> None:
@@ -564,8 +587,12 @@ class CoreBacktestOutput:
             "fills": [item.to_serializable() for item in self.fills],
             "initial_equity": self.initial_equity,
             "orders": [item.to_serializable() for item in self.orders],
-            "portfolio_states": [item.to_serializable() for item in self.portfolio_states],
-            "strategy_decisions": [item.to_serializable() for item in self.strategy_decisions],
+            "portfolio_states": [
+                item.to_serializable() for item in self.portfolio_states
+            ],
+            "strategy_decisions": [
+                item.to_serializable() for item in self.strategy_decisions
+            ],
         }
 
 
@@ -621,7 +648,9 @@ def is_legal_run_transition(current: RunState | str, target: RunState | str) -> 
     }
 
 
-def require_legal_run_transition(current: RunState | str, target: RunState | str) -> RunState:
+def require_legal_run_transition(
+    current: RunState | str, target: RunState | str
+) -> RunState:
     """Validate and return a legal target run state, otherwise raise ValueError."""
     coerced_target = _coerce_enum(RunState, "target run state", target)
     if not is_legal_run_transition(current, coerced_target):
@@ -648,7 +677,9 @@ class ProgressUpdate:
         operation = _coerce_enum(JobOperation, "operation", self.operation)
         state = _coerce_enum(JobState, "state", self.state)
         stage = _coerce_enum(JobStage, "stage", self.stage)
-        completed_units = _require_integer("completed_units", self.completed_units, minimum=0)
+        completed_units = _require_integer(
+            "completed_units", self.completed_units, minimum=0
+        )
         total_units = self.total_units
         if total_units is not None:
             total_units = _require_integer("total_units", total_units, minimum=0)
@@ -666,14 +697,26 @@ class ProgressUpdate:
         if state is JobState.NOT_STARTED and (
             stage is not JobStage.NOT_STARTED or completed_units != 0
         ):
-            raise ValueError("not_started progress must use not_started stage and zero work")
-        if state is JobState.RUNNING and stage in {JobStage.NOT_STARTED, JobStage.COMPLETED, JobStage.FAILED}:
+            raise ValueError(
+                "not_started progress must use not_started stage and zero work"
+            )
+        if state is JobState.RUNNING and stage in {
+            JobStage.NOT_STARTED,
+            JobStage.COMPLETED,
+            JobStage.FAILED,
+        }:
             raise ValueError("running progress must use an active stage")
-        if state in {JobState.SUCCEEDED, JobState.PARTIALLY_SUCCEEDED} and stage is not JobStage.COMPLETED:
+        if (
+            state in {JobState.SUCCEEDED, JobState.PARTIALLY_SUCCEEDED}
+            and stage is not JobStage.COMPLETED
+        ):
             raise ValueError("successful terminal progress must use completed stage")
         if state is JobState.FAILED and stage is not JobStage.FAILED:
             raise ValueError("failed terminal progress must use failed stage")
-        if state is JobState.PARTIALLY_SUCCEEDED and operation is not JobOperation.INGESTION:
+        if (
+            state is JobState.PARTIALLY_SUCCEEDED
+            and operation is not JobOperation.INGESTION
+        ):
             raise ValueError("partially_succeeded is valid only for ingestion jobs")
 
         object.__setattr__(self, "operation", operation)

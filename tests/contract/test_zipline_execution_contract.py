@@ -141,9 +141,9 @@ def test_overnight_gap_planner_contract() -> None:
                     actual_field = (
                         "base_adjusted_open" if field == "base_open" else field
                     )
-                    assert (
-                        getattr(actual, actual_field) == _decimal(expected[field])
-                    ), case_name
+                    assert getattr(actual, actual_field) == _decimal(expected[field]), (
+                        case_name
+                    )
 
         assert [
             {
@@ -190,8 +190,10 @@ def test_real_zipline_event_loop_has_next_open_timing_and_core_ledger_artifacts(
     fill = output.fills[0]
     assert order.status is OrderStatus.FILLED
     assert order.signal_session == date.fromisoformat(expected["signal_session"])
-    assert order.execution_session == fill.session == date.fromisoformat(
-        expected["execution_session"]
+    assert (
+        order.execution_session
+        == fill.session
+        == date.fromisoformat(expected["execution_session"])
     )
     assert fill.session > order.signal_session
     assert fill.base_adjusted_open == _decimal(expected["execution_open"])
@@ -207,8 +209,7 @@ def test_real_zipline_event_loop_has_next_open_timing_and_core_ledger_artifacts(
     assert len({item.order_id for item in output.orders}) == len(output.orders)
     assert len({item.fill_id for item in output.fills}) == len(output.fills)
     assert all(
-        item.quantity != 0 and isinstance(item.quantity, int)
-        for item in output.fills
+        item.quantity != 0 and isinstance(item.quantity, int) for item in output.fills
     )
     for state in output.portfolio_states:
         assert state.cash_balance >= 0
@@ -332,8 +333,7 @@ def test_real_zipline_ledger_applies_split_and_dividend_once_to_actual_shares(
     expected = _fixture()["actual_share_actions"]
     post_split_shares = int(
         (
-            _decimal(expected["starting_shares"])
-            * _decimal(expected["split_ratio"])
+            _decimal(expected["starting_shares"]) * _decimal(expected["split_ratio"])
         ).to_integral_value(rounding=ROUND_FLOOR)
     )
     assert fill.quantity == post_split_shares

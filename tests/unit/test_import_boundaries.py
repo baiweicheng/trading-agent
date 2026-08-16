@@ -46,7 +46,7 @@ def _import_from_target(
         return tuple(node.module.split(".")) if node.module else ()
 
     parent_length = len(current_package) - node.level + 1
-    base = current_package[:max(parent_length, 0)]
+    base = current_package[: max(parent_length, 0)]
     module = tuple(node.module.split(".")) if node.module else ()
     return base + module
 
@@ -78,9 +78,8 @@ def _imports_layer(module: str, layer: str) -> bool:
 def _is_allowed_composition_root_import(path: Path, module: str) -> bool:
     """The documented UI composition root is the adapter-wiring exception."""
 
-    return (
-        path == PACKAGE_ROOT / "ui" / "app.py"
-        and module.startswith(f"{PACKAGE_PREFIX}.infrastructure")
+    return path == PACKAGE_ROOT / "ui" / "app.py" and module.startswith(
+        f"{PACKAGE_PREFIX}.infrastructure"
     )
 
 

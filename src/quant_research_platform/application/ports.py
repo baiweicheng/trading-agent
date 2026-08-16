@@ -246,8 +246,7 @@ def fetch_batched_daily(
         benchmark_symbol=benchmark_symbol,
     )
     return tuple(
-        fetch_with_retry(provider, request, policy, sleep=sleep)
-        for request in requests
+        fetch_with_retry(provider, request, policy, sleep=sleep) for request in requests
     )
 
 

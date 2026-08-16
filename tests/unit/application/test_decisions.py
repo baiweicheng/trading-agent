@@ -14,7 +14,6 @@ from quant_research_platform.application.decisions import (
 from quant_research_platform.domain.errors import Ok
 from quant_research_platform.domain.strategy import StrategyExclusionReason
 
-
 SNAPSHOT = SimpleNamespace(snapshot_id="snap_" + "a" * 64)
 
 
@@ -31,7 +30,13 @@ def _history(count: int = 254) -> tuple[dict[str, object], ...]:
         ("MSFT", Decimal("100"), Decimal("110"), Decimal("50")),
     ):
         for index, session in enumerate(sessions):
-            close = long_close if index == 1 else short_close if index == count - 22 else Decimal("100")
+            close = (
+                long_close
+                if index == 1
+                else short_close
+                if index == count - 22
+                else Decimal("100")
+            )
             rows.append(
                 {
                     "symbol": symbol,
@@ -48,7 +53,14 @@ def test_delivery_reads_only_through_signal_and_floors_targets() -> None:
     calls: list[date] = []
 
     class Reader:
-        def read_history(self, snapshot: object, *, symbols: tuple[str, ...], end_session: date, fields: tuple[str, ...]):
+        def read_history(
+            self,
+            snapshot: object,
+            *,
+            symbols: tuple[str, ...],
+            end_session: date,
+            fields: tuple[str, ...],
+        ):
             assert snapshot is SNAPSHOT
             assert symbols == ("AAPL", "MSFT")
             assert "sizing_adjusted_close" in fields
@@ -68,7 +80,9 @@ def test_delivery_reads_only_through_signal_and_floors_targets() -> None:
     assert calls == [signal]
     assert result.value.marked_equity == Decimal("1500")
     # AAPL receives floor(1500 / 123.45) = 12 shares; MSFT is fully liquidated.
-    assert [(item.symbol, item.requested_quantity) for item in result.value.order_intents] == [
+    assert [
+        (item.symbol, item.requested_quantity) for item in result.value.order_intents
+    ] == [
         ("MSFT", -10),
         ("AAPL", 12),
     ]
@@ -76,7 +90,9 @@ def test_delivery_reads_only_through_signal_and_floors_targets() -> None:
     assert result.value.run_inputs.policy_version == "causal_forward_v1"
 
 
-def test_decision_book_reveals_only_exact_signal_session_and_warmup_has_no_orders() -> None:
+def test_decision_book_reveals_only_exact_signal_session_and_warmup_has_no_orders() -> (
+    None
+):
     sessions = tuple(date(2024, 1, 2) + timedelta(days=index) for index in range(253))
     rows = tuple(
         {
@@ -121,7 +137,10 @@ def test_standalone_order_intents_have_repeatable_scientific_ids() -> None:
     )
     assert isinstance(prepared, Ok)
     decisions = prepared.value.decisions
-    prices = {("AAPL", date(2024, 9, 11)): Decimal("123.45"), ("MSFT", date(2024, 9, 11)): Decimal("50")}
+    prices = {
+        ("AAPL", date(2024, 9, 11)): Decimal("123.45"),
+        ("MSFT", date(2024, 9, 11)): Decimal("50"),
+    }
     first = generate_order_intents(
         decisions,
         {"cash_balance": Decimal("1000"), "positions": {"MSFT": 10}},

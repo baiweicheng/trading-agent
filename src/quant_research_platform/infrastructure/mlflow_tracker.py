@@ -58,7 +58,9 @@ class MlflowClientPort(Protocol):
 
     def log_param(self, run_id: str, key: str, value: object) -> object: ...
 
-    def log_metric(self, run_id: str, key: str, value: float, **kwargs: object) -> object: ...
+    def log_metric(
+        self, run_id: str, key: str, value: float, **kwargs: object
+    ) -> object: ...
 
     def set_tag(self, run_id: str, key: str, value: object) -> object: ...
 
@@ -74,13 +76,19 @@ class MetadataStorePort(Protocol):
 
     def set_mlflow_run_id(self, run_id: UUID, mlflow_run_id: str) -> object: ...
 
-    def create_finalization_intent(self, run_id: UUID, finalization: RunFinalization, **kwargs: object) -> object: ...
+    def create_finalization_intent(
+        self, run_id: UUID, finalization: RunFinalization, **kwargs: object
+    ) -> object: ...
 
-    def mark_finalization_mlflow_synced(self, run_id: UUID, **kwargs: object) -> object: ...
+    def mark_finalization_mlflow_synced(
+        self, run_id: UUID, **kwargs: object
+    ) -> object: ...
 
     def get_finalization_intent(self, run_id: UUID) -> object: ...
 
-    def finalize_run(self, run_id: UUID, finalization: RunFinalization, **kwargs: object) -> object: ...
+    def finalize_run(
+        self, run_id: UUID, finalization: RunFinalization, **kwargs: object
+    ) -> object: ...
 
     def get_run(self, run_id: UUID) -> object: ...
 
@@ -130,7 +138,9 @@ class RunInputs:
             raise TypeError("platform_run_id must be a UUID")
         if evaluation_start is None or evaluation_end is None:
             raise TypeError("evaluation_start and evaluation_end are required")
-        if not isinstance(evaluation_start, date) or isinstance(evaluation_start, datetime):
+        if not isinstance(evaluation_start, date) or isinstance(
+            evaluation_start, datetime
+        ):
             raise TypeError("evaluation_start must be a date")
         if not isinstance(evaluation_end, date) or isinstance(evaluation_end, datetime):
             raise TypeError("evaluation_end must be a date")
@@ -141,7 +151,9 @@ class RunInputs:
         if isinstance(strategy_parameters, Mapping):
             parameters: Mapping[str, object] = dict(strategy_parameters)
         elif hasattr(strategy_parameters, "to_serializable"):
-            parameters = cast(Mapping[str, object], strategy_parameters.to_serializable())
+            parameters = cast(
+                Mapping[str, object], strategy_parameters.to_serializable()
+            )
         else:
             parameters = {"value": strategy_parameters}
         object.__setattr__(self, "platform_run_id", identifier)
@@ -154,9 +166,15 @@ class RunInputs:
         object.__setattr__(self, "environment_fingerprint", environment_fingerprint)
         object.__setattr__(self, "configuration_checksum", str(configuration_checksum))
         object.__setattr__(self, "environment_checksum", str(environment_checksum))
-        object.__setattr__(self, "universe", tuple(str(item).strip().upper() for item in universe))
+        object.__setattr__(
+            self, "universe", tuple(str(item).strip().upper() for item in universe)
+        )
         object.__setattr__(self, "deterministic_seed", deterministic_seed)
-        object.__setattr__(self, "secret_values", tuple(str(item) for item in secret_values if str(item)))
+        object.__setattr__(
+            self,
+            "secret_values",
+            tuple(str(item) for item in secret_values if str(item)),
+        )
 
     @property
     def run_id(self) -> UUID:
@@ -222,7 +240,9 @@ def _default_client(uri: str) -> MlflowClientPort:
     try:
         from mlflow.tracking import MlflowClient  # type: ignore[import-untyped]
     except Exception as error:  # pragma: no cover - depends on environment
-        raise MlflowTrackerError("MLflow is not installed for local tracking") from error
+        raise MlflowTrackerError(
+            "MLflow is not installed for local tracking"
+        ) from error
     return cast(MlflowClientPort, MlflowClient(tracking_uri=uri))
 
 
@@ -244,7 +264,11 @@ def _plain(value: object, *, key: str = "") -> object:
     if value is None or isinstance(value, (str, bool, int, float)):
         return value
     if isinstance(value, (date, datetime, Decimal)):
-        return value.isoformat() if isinstance(value, (date, datetime)) else format(value, "f")
+        return (
+            value.isoformat()
+            if isinstance(value, (date, datetime))
+            else format(value, "f")
+        )
     if isinstance(value, UUID):
         return str(value)
     if isinstance(value, Mapping):
@@ -275,7 +299,9 @@ def _redact_object(value: object, secrets: Sequence[str]) -> object:
         return [_redact_object(item, secrets) for item in plain]
     if isinstance(plain, dict):
         return {
-            key: _REDACTION if _SENSITIVE_KEY.search(key) else _redact_object(item, secrets)
+            key: _REDACTION
+            if _SENSITIVE_KEY.search(key)
+            else _redact_object(item, secrets)
             for key, item in plain.items()
         }
     return plain
@@ -354,10 +380,18 @@ def _as_artifact(value: object, ordinal: int) -> _Artifact | None:
     if not isinstance(checksum, str) or _SHA256.fullmatch(checksum) is None:
         return None
     role = _get(value, "role", "name", default=f"artifact_{ordinal}")
-    uri = _get(value, "relative_uri", "uri", "path", default=f"artifacts/sha256/{checksum}")
+    uri = _get(
+        value, "relative_uri", "uri", "path", default=f"artifacts/sha256/{checksum}"
+    )
     size = _get(value, "byte_size", "size", default=None)
     scientific = bool(_get(value, "scientific", default=True))
-    normalized_size = int(size) if isinstance(size, int) else int(size) if isinstance(size, str) and size.isdigit() else None
+    normalized_size = (
+        int(size)
+        if isinstance(size, int)
+        else int(size)
+        if isinstance(size, str) and size.isdigit()
+        else None
+    )
     return _Artifact(checksum, str(role), str(uri), normalized_size, scientific)
 
 
@@ -367,15 +401,35 @@ def _result_artifacts(result: object) -> tuple[_Artifact, ...]:
         candidates = ()
     if isinstance(candidates, Mapping):
         candidates = tuple(candidates.values())
-    found = [_as_artifact(item, index) for index, item in enumerate(cast(Iterable[object], candidates))]
-    return tuple(sorted((item for item in found if item is not None), key=lambda item: (item.role, item.checksum)))
+    found = [
+        _as_artifact(item, index)
+        for index, item in enumerate(cast(Iterable[object], candidates))
+    ]
+    return tuple(
+        sorted(
+            (item for item in found if item is not None),
+            key=lambda item: (item.role, item.checksum),
+        )
+    )
 
 
 def _metrics(result: object) -> tuple[EvaluationMetrics, ...]:
     evaluation = _get(result, "evaluation", "evaluation_result", default=result)
     if not isinstance(evaluation, EvaluationResult):
-        return tuple(item for item in (_get(evaluation, "strategy_metrics"), _get(evaluation, "benchmark_metrics"), _get(evaluation, "differences")) if isinstance(item, EvaluationMetrics))
-    return (evaluation.strategy_metrics, evaluation.benchmark_metrics, evaluation.differences)
+        return tuple(
+            item
+            for item in (
+                _get(evaluation, "strategy_metrics"),
+                _get(evaluation, "benchmark_metrics"),
+                _get(evaluation, "differences"),
+            )
+            if isinstance(item, EvaluationMetrics)
+        )
+    return (
+        evaluation.strategy_metrics,
+        evaluation.benchmark_metrics,
+        evaluation.differences,
+    )
 
 
 def _enum_value(value: object) -> str:
@@ -383,7 +437,9 @@ def _enum_value(value: object) -> str:
     return str(member)
 
 
-def _metric_values(metrics: Iterable[EvaluationMetrics]) -> Iterable[tuple[str, MetricValue]]:
+def _metric_values(
+    metrics: Iterable[EvaluationMetrics],
+) -> Iterable[tuple[str, MetricValue]]:
     for collection in metrics:
         for metric in collection.metrics:
             yield f"{_enum_value(collection.scope)}.{_enum_value(metric.name)}", metric
@@ -431,10 +487,16 @@ class LocalMlflowTracker:
                 evaluation_start=inputs.evaluation_start,
                 evaluation_end=inputs.evaluation_end,
                 universe=inputs.universe,
-                configuration_checksum=inputs.configuration_checksum or sha256_canonical_json({}),
-                environment_checksum=inputs.environment_checksum or sha256_canonical_json({"seed": inputs.deterministic_seed}),
-                created_at=cast(datetime, values.get("created_at") or datetime.now(UTC)),
-                started_at=cast(datetime, values.get("started_at") or datetime.now(UTC)),
+                configuration_checksum=inputs.configuration_checksum
+                or sha256_canonical_json({}),
+                environment_checksum=inputs.environment_checksum
+                or sha256_canonical_json({"seed": inputs.deterministic_seed}),
+                created_at=cast(
+                    datetime, values.get("created_at") or datetime.now(UTC)
+                ),
+                started_at=cast(
+                    datetime, values.get("started_at") or datetime.now(UTC)
+                ),
             )
         try:
             experiment = _experiment_id(self.client, self.experiment_name)
@@ -444,7 +506,9 @@ class LocalMlflowTracker:
             mlflow_id = _mlflow_run_id(run)
             if self.metadata_store is not None:
                 try:
-                    self.metadata_store.set_mlflow_run_id(inputs.platform_run_id, mlflow_id)
+                    self.metadata_store.set_mlflow_run_id(
+                        inputs.platform_run_id, mlflow_id
+                    )
                 except Exception as mapping_error:
                     # MLflow IDs are globally unique in the real backend.  A
                     # local client double (or a recovered catalog) can still
@@ -462,8 +526,12 @@ class LocalMlflowTracker:
                     )
             self._log_inputs(mlflow_id, inputs)
         except Exception as error:
-            actionable = self._tracking_error("experiment.allocate", error, inputs.platform_run_id)
-            self._terminalize_platform_failure(inputs.platform_run_id, actionable, values)
+            actionable = self._tracking_error(
+                "experiment.allocate", error, inputs.platform_run_id
+            )
+            self._terminalize_platform_failure(
+                inputs.platform_run_id, actionable, values
+            )
             raise MlflowTrackerError(actionable.message) from None
         handle = RunHandle(inputs.platform_run_id, mlflow_id)
         self._handles[inputs.platform_run_id] = handle
@@ -473,7 +541,9 @@ class LocalMlflowTracker:
     start_run = allocate_run
     begin_run = allocate_run
 
-    def finalize_success(self, run: RunHandle | UUID | object, result: object) -> RunHandle:
+    def finalize_success(
+        self, run: RunHandle | UUID | object, result: object
+    ) -> RunHandle:
         handle = self._handle(run)
         metrics = _metrics(result)
         artifacts = _result_artifacts(result)
@@ -481,14 +551,35 @@ class LocalMlflowTracker:
 
         finalization = RunFinalization(
             desired_state=RunState.SUCCEEDED,
-            manifest_checksum=cast(str | None, _get(result, "manifest_checksum", default=_get(_get(result, "manifest", default=None), "checksum"))),
-            manifest_uri=cast(str | None, _get(result, "manifest_uri", default=_get(_get(result, "manifest", default=None), "relative_uri"))),
+            manifest_checksum=cast(
+                str | None,
+                _get(
+                    result,
+                    "manifest_checksum",
+                    default=_get(_get(result, "manifest", default=None), "checksum"),
+                ),
+            ),
+            manifest_uri=cast(
+                str | None,
+                _get(
+                    result,
+                    "manifest_uri",
+                    default=_get(
+                        _get(result, "manifest", default=None), "relative_uri"
+                    ),
+                ),
+            ),
             metrics=tuple(sorted(metrics, key=lambda item: _enum_value(item.scope))),
-            artifacts=tuple(RunArtifactLink(item.checksum, item.role, item.scientific) for item in artifacts),
+            artifacts=tuple(
+                RunArtifactLink(item.checksum, item.role, item.scientific)
+                for item in artifacts
+            ),
         )
         payload_key = finalization.payload_checksum
         if self._is_terminal(handle, RunState.SUCCEEDED, payload_key):
-            return RunHandle(handle.platform_run_id, handle.mlflow_run_id, RunState.SUCCEEDED)
+            return RunHandle(
+                handle.platform_run_id, handle.mlflow_run_id, RunState.SUCCEEDED
+            )
         if handle.state is not RunState.RUNNING:
             raise MlflowTrackerError("terminal runs are immutable; create a new Run ID")
         self._create_intent(handle.platform_run_id, finalization)
@@ -504,7 +595,9 @@ class LocalMlflowTracker:
         self._sync_intent(handle.platform_run_id)
         self._finalize_metadata(handle.platform_run_id, finalization, result)
         self._terminal_payloads[handle.platform_run_id] = payload_key
-        terminal = RunHandle(handle.platform_run_id, handle.mlflow_run_id, RunState.SUCCEEDED)
+        terminal = RunHandle(
+            handle.platform_run_id, handle.mlflow_run_id, RunState.SUCCEEDED
+        )
         self._handles[handle.platform_run_id] = terminal
         return terminal
 
@@ -519,22 +612,43 @@ class LocalMlflowTracker:
         diagnostics: Sequence[object] = (),
     ) -> RunHandle:
         handle = self._handle(run)
-        safe_errors = tuple(error for error in errors if isinstance(error, ActionableError))
+        safe_errors = tuple(
+            error for error in errors if isinstance(error, ActionableError)
+        )
         if not safe_errors:
-            safe_errors = (self._tracking_error("experiment.finalize_failure", RuntimeError("failure"), handle.platform_run_id),)
-        artifacts = tuple(item for item in (_as_artifact(value, index) for index, value in enumerate(diagnostics)) if item is not None)
+            safe_errors = (
+                self._tracking_error(
+                    "experiment.finalize_failure",
+                    RuntimeError("failure"),
+                    handle.platform_run_id,
+                ),
+            )
+        artifacts = tuple(
+            item
+            for item in (
+                _as_artifact(value, index) for index, value in enumerate(diagnostics)
+            )
+            if item is not None
+        )
         from .duckdb_metadata import RunArtifactLink, RunFinalization
 
         finalization = RunFinalization(
             desired_state=RunState.FAILED,
             manifest_checksum=None,
             manifest_uri=None,
-            artifacts=tuple(RunArtifactLink(item.checksum, item.role, item.scientific) for item in sorted(artifacts, key=lambda item: (item.role, item.checksum))),
+            artifacts=tuple(
+                RunArtifactLink(item.checksum, item.role, item.scientific)
+                for item in sorted(
+                    artifacts, key=lambda item: (item.role, item.checksum)
+                )
+            ),
             errors=safe_errors,
         )
         payload_key = finalization.payload_checksum
         if self._is_terminal(handle, RunState.FAILED, payload_key):
-            return RunHandle(handle.platform_run_id, handle.mlflow_run_id, RunState.FAILED)
+            return RunHandle(
+                handle.platform_run_id, handle.mlflow_run_id, RunState.FAILED
+            )
         if handle.state is not RunState.RUNNING:
             raise MlflowTrackerError("terminal runs are immutable; create a new Run ID")
         self._create_intent(handle.platform_run_id, finalization)
@@ -552,7 +666,9 @@ class LocalMlflowTracker:
         self._sync_intent(handle.platform_run_id)
         self._finalize_metadata(handle.platform_run_id, finalization, None)
         self._terminal_payloads[handle.platform_run_id] = payload_key
-        terminal = RunHandle(handle.platform_run_id, handle.mlflow_run_id, RunState.FAILED)
+        terminal = RunHandle(
+            handle.platform_run_id, handle.mlflow_run_id, RunState.FAILED
+        )
         self._handles[handle.platform_run_id] = terminal
         return terminal
 
@@ -560,54 +676,90 @@ class LocalMlflowTracker:
     record_failure = finalize_failure
     fail_run = finalize_failure
 
-    def open_verified_artifact(self, run_id: UUID | str, checksum: str) -> VerifiedArtifact:
+    def open_verified_artifact(
+        self, run_id: UUID | str, checksum: str
+    ) -> VerifiedArtifact:
         """Verify and return a streamable local artifact reference."""
         if not isinstance(checksum, str) or _SHA256.fullmatch(checksum) is None:
             raise ValueError("checksum must be a lowercase SHA-256 digest")
         if self.metadata_store is None:
             raise MlflowTrackerError("metadata store is required for artifact lookup")
         record = self.metadata_store.get_artifact(checksum)  # type: ignore[attr-defined]
-        if str(_get(record, "availability", default="available")) not in {"available", "SnapshotAvailability.AVAILABLE"}:
-            raise MlflowTrackerError("artifact is unavailable or failed integrity verification")
+        if str(_get(record, "availability", default="available")) not in {
+            "available",
+            "SnapshotAvailability.AVAILABLE",
+        }:
+            raise MlflowTrackerError(
+                "artifact is unavailable or failed integrity verification"
+            )
         if self.artifact_store is None:
             raise MlflowTrackerError("artifact store is required for verified access")
-        reference = _get(self.artifact_store, "artifact_reference", default=None)
-        del reference
         stream_method = getattr(self.artifact_store, "stream_artifact", None)
         if not callable(stream_method):
-            raise MlflowTrackerError("artifact store does not provide verified streaming")
-        try:
-            from .filesystem_store import ArtifactReference
-            record_size = _get(record, "byte_size", default=0)
-            artifact_reference = ArtifactReference(
-                checksum=checksum,
-                byte_size=int(record_size) if isinstance(record_size, (int, str)) else 0,
-                relative_uri=str(_get(record, "relative_uri")),
-                metadata_checksum=checksum,
+            raise MlflowTrackerError(
+                "artifact store does not provide verified streaming"
             )
+        try:
+            reference_factory = getattr(self.artifact_store, "artifact_reference", None)
+            if callable(reference_factory):
+                artifact_reference = reference_factory(checksum)
+            else:
+                from .filesystem_store import ArtifactReference
+
+                record_size = _get(record, "byte_size", default=0)
+                artifact_reference = ArtifactReference(
+                    checksum=checksum,
+                    byte_size=int(record_size)
+                    if isinstance(record_size, (int, str))
+                    else 0,
+                    relative_uri=str(_get(record, "relative_uri")),
+                    metadata_checksum=checksum,
+                )
         except Exception as error:
-            raise MlflowTrackerError("artifact metadata could not be converted to a verified reference") from error
+            raise MlflowTrackerError(
+                "artifact metadata could not be converted to a verified reference"
+            ) from error
         return VerifiedArtifact(
             checksum=checksum,
             relative_uri=artifact_reference.relative_uri,
             byte_size=artifact_reference.byte_size,
-            media_type=str(_get(record, "media_type", default="application/octet-stream")),
-            _stream_factory=lambda: cast(Iterable[bytes], stream_method(artifact_reference)),
+            media_type=str(
+                _get(record, "media_type", default="application/octet-stream")
+            ),
+            _stream_factory=lambda: cast(
+                Iterable[bytes], stream_method(artifact_reference)
+            ),
         )
 
     def _inputs(self, values: Mapping[str, object]) -> RunInputs:
         request = values.get("request") or values.get("backtest_request")
-        snapshot_id = str(values.get("snapshot_id") or _get(request, "snapshot_id", default=""))
-        evaluation_range = values.get("evaluation_range") or _get(request, "evaluation_range", default=None)
-        start = values.get("evaluation_start") or _get(evaluation_range, "start", default=None)
-        end = values.get("evaluation_end") or _get(evaluation_range, "end", default=None)
+        snapshot_id = str(
+            values.get("snapshot_id") or _get(request, "snapshot_id", default="")
+        )
+        evaluation_range = values.get("evaluation_range") or _get(
+            request, "evaluation_range", default=None
+        )
+        start = values.get("evaluation_start") or _get(
+            evaluation_range, "start", default=None
+        )
+        end = values.get("evaluation_end") or _get(
+            evaluation_range, "end", default=None
+        )
         config = values.get("config") or values.get("resolved_config")
-        strategy_parameters = values.get("strategy_parameters") or _get(config, "strategy", default={})
+        strategy_parameters = values.get("strategy_parameters") or _get(
+            config, "strategy", default={}
+        )
         fingerprint = values.get("environment_fingerprint") or values.get("fingerprint")
         return RunInputs(
-            platform_run_id=cast(UUID | None, values.get("run_id") or values.get("platform_run_id")),
+            platform_run_id=cast(
+                UUID | None, values.get("run_id") or values.get("platform_run_id")
+            ),
             snapshot_id=snapshot_id,
-            strategy_identifier=str(values.get("strategy_identifier") or values.get("strategy_id") or _get(config, "strategy.identifier", default="monthly_momentum_v1")),
+            strategy_identifier=str(
+                values.get("strategy_identifier")
+                or values.get("strategy_id")
+                or _get(config, "strategy.identifier", default="monthly_momentum_v1")
+            ),
             strategy_parameters=strategy_parameters,
             evaluation_start=cast(date, start),
             evaluation_end=cast(date, end),
@@ -615,8 +767,19 @@ class LocalMlflowTracker:
             environment_fingerprint=fingerprint,
             configuration_checksum=str(values.get("configuration_checksum") or ""),
             environment_checksum=str(values.get("environment_checksum") or ""),
-            universe=cast(Sequence[str], values.get("universe") or _get(config, "data.universe", default=())),
-            deterministic_seed=int(cast(int | str, values.get("deterministic_seed", _get(config, "runtime.deterministic_seed", default=0)))),
+            universe=cast(
+                Sequence[str],
+                values.get("universe") or _get(config, "data.universe", default=()),
+            ),
+            deterministic_seed=int(
+                cast(
+                    int | str,
+                    values.get(
+                        "deterministic_seed",
+                        _get(config, "runtime.deterministic_seed", default=0),
+                    ),
+                )
+            ),
             secret_values=cast(Sequence[str], values.get("secret_values", ())),
         )
 
@@ -633,18 +796,41 @@ class LocalMlflowTracker:
 
     def _log_inputs(self, mlflow_id: str, inputs: RunInputs) -> None:
         params: dict[str, str] = {}
-        params.update({f"strategy.{key}": _scalar(value, inputs.secret_values) for key, value in inputs.strategy_parameters.items()})
+        params.update(
+            {
+                f"strategy.{key}": _scalar(value, inputs.secret_values)
+                for key, value in inputs.strategy_parameters.items()
+            }
+        )
         params["snapshot_id"] = _scalar(inputs.snapshot_id, inputs.secret_values)
         params["evaluation_start"] = inputs.evaluation_start.isoformat()
         params["evaluation_end"] = inputs.evaluation_end.isoformat()
         params["universe"] = _scalar(inputs.universe, inputs.secret_values)
-        params["configuration_checksum"] = _scalar(inputs.configuration_checksum, inputs.secret_values)
-        params["environment_checksum"] = _scalar(inputs.environment_checksum, inputs.secret_values)
+        params["configuration_checksum"] = _scalar(
+            inputs.configuration_checksum, inputs.secret_values
+        )
+        params["environment_checksum"] = _scalar(
+            inputs.environment_checksum, inputs.secret_values
+        )
         for key, value in params.items():
             self.client.log_param(mlflow_id, key, value)
-        config = _redact_object(inputs.configuration, inputs.secret_values) if inputs.configuration is not None else {}
-        fingerprint = _redact_object(inputs.environment_fingerprint, inputs.secret_values) if inputs.environment_fingerprint is not None else {}
-        self.client.log_text(mlflow_id, canonical_json_text({"configuration": config, "environment_fingerprint": fingerprint}), "inputs.json")
+        config = (
+            _redact_object(inputs.configuration, inputs.secret_values)
+            if inputs.configuration is not None
+            else {}
+        )
+        fingerprint = (
+            _redact_object(inputs.environment_fingerprint, inputs.secret_values)
+            if inputs.environment_fingerprint is not None
+            else {}
+        )
+        self.client.log_text(
+            mlflow_id,
+            canonical_json_text(
+                {"configuration": config, "environment_fingerprint": fingerprint}
+            ),
+            "inputs.json",
+        )
 
     def _log_terminal(
         self,
@@ -662,42 +848,90 @@ class LocalMlflowTracker:
             if metric.value is not None:
                 self.client.log_metric(handle.mlflow_run_id, name, float(metric.value))
             elif metric.null_reason is not None:
-                self.client.set_tag(handle.mlflow_run_id, f"metric.{name}.null_reason", _enum_value(metric.null_reason))
+                self.client.set_tag(
+                    handle.mlflow_run_id,
+                    f"metric.{name}.null_reason",
+                    _enum_value(metric.null_reason),
+                )
         references = []
         for artifact in artifacts:
-            references.append({"role": artifact.role, "checksum": artifact.checksum, "uri": artifact.uri, "byte_size": artifact.byte_size, "scientific": artifact.scientific})
-            self.client.set_tag(handle.mlflow_run_id, f"artifact.{artifact.role}.checksum", artifact.checksum)
-            self.client.set_tag(handle.mlflow_run_id, f"artifact.{artifact.role}.uri", _scalar(artifact.uri, ()))
+            references.append(
+                {
+                    "role": artifact.role,
+                    "checksum": artifact.checksum,
+                    "uri": artifact.uri,
+                    "byte_size": artifact.byte_size,
+                    "scientific": artifact.scientific,
+                }
+            )
+            self.client.set_tag(
+                handle.mlflow_run_id,
+                f"artifact.{artifact.role}.checksum",
+                artifact.checksum,
+            )
+            self.client.set_tag(
+                handle.mlflow_run_id,
+                f"artifact.{artifact.role}.uri",
+                _scalar(artifact.uri, ()),
+            )
         if errors:
-            self.client.log_text(handle.mlflow_run_id, canonical_json_text({"errors": [error.format_for_display() for error in errors]}), "diagnostics.json")
+            self.client.log_text(
+                handle.mlflow_run_id,
+                canonical_json_text(
+                    {"errors": [error.format_for_display() for error in errors]}
+                ),
+                "diagnostics.json",
+            )
         if references:
-            self.client.log_text(handle.mlflow_run_id, canonical_json_text({"references": references}), "artifact-references.json")
+            self.client.log_text(
+                handle.mlflow_run_id,
+                canonical_json_text({"references": references}),
+                "artifact-references.json",
+            )
         if result is not None:
             manifest = _get(result, "manifest", "run_manifest", default=None)
             if manifest is not None:
-                self.client.log_text(handle.mlflow_run_id, canonical_json_text(_plain(manifest)), "run-manifest.json")
+                self.client.log_text(
+                    handle.mlflow_run_id,
+                    canonical_json_text(_plain(manifest)),
+                    "run-manifest.json",
+                )
         self.client.set_tag(handle.mlflow_run_id, "qrp.state", state.value)
-        self.client.set_terminated(handle.mlflow_run_id, status="FINISHED" if state is RunState.SUCCEEDED else "FAILED", end_time=int(datetime.now(UTC).timestamp() * 1000))
+        self.client.set_terminated(
+            handle.mlflow_run_id,
+            status="FINISHED" if state is RunState.SUCCEEDED else "FAILED",
+            end_time=int(datetime.now(UTC).timestamp() * 1000),
+        )
 
     def _create_intent(self, run_id: UUID, finalization: RunFinalization) -> None:
         if self.metadata_store is not None:
-            self.metadata_store.create_finalization_intent(run_id, finalization, created_at=datetime.now(UTC))
+            self.metadata_store.create_finalization_intent(
+                run_id, finalization, created_at=datetime.now(UTC)
+            )
 
     def _sync_intent(self, run_id: UUID) -> None:
         if self.metadata_store is not None:
-            self.metadata_store.mark_finalization_mlflow_synced(run_id, attempted_at=datetime.now(UTC))
+            self.metadata_store.mark_finalization_mlflow_synced(
+                run_id, attempted_at=datetime.now(UTC)
+            )
 
-    def _mark_mlflow_sync_failure(
-        self, run_id: UUID, error: ActionableError
-    ) -> None:
+    def _mark_mlflow_sync_failure(self, run_id: UUID, error: ActionableError) -> None:
         if self.metadata_store is not None:
             self.metadata_store.mark_finalization_mlflow_synced(
                 run_id, attempted_at=datetime.now(UTC), error=error
             )
 
-    def _finalize_metadata(self, run_id: UUID, finalization: RunFinalization, result: object | None) -> None:
+    def _finalize_metadata(
+        self, run_id: UUID, finalization: RunFinalization, result: object | None
+    ) -> None:
         if self.metadata_store is not None:
-            self.metadata_store.finalize_run(run_id, finalization, ended_at=cast(datetime, _get(result, "ended_at", default=datetime.now(UTC))))
+            self.metadata_store.finalize_run(
+                run_id,
+                finalization,
+                ended_at=cast(
+                    datetime, _get(result, "ended_at", default=datetime.now(UTC))
+                ),
+            )
 
     def _handle(self, value: RunHandle | UUID | object) -> RunHandle:
         if isinstance(value, RunHandle):
@@ -708,8 +942,16 @@ class LocalMlflowTracker:
             if self.metadata_store is not None:
                 try:
                     record = self.metadata_store.get_run(value)
-                    state = RunState(_enum_value(_get(record, "state", default=RunState.RUNNING.value)))
-                    handle = RunHandle(value, cast(str | None, _get(record, "mlflow_run_id", default=None)), state)
+                    state = RunState(
+                        _enum_value(
+                            _get(record, "state", default=RunState.RUNNING.value)
+                        )
+                    )
+                    handle = RunHandle(
+                        value,
+                        cast(str | None, _get(record, "mlflow_run_id", default=None)),
+                        state,
+                    )
                     self._handles[value] = handle
                     return handle
                 except Exception:
@@ -717,7 +959,13 @@ class LocalMlflowTracker:
             raise MlflowTrackerError(f"run {value} is not known to this tracker")
         identifier = _get(value, "platform_run_id", "run_id")
         if isinstance(identifier, UUID):
-            return RunHandle(identifier, cast(str | None, _get(value, "mlflow_run_id", default=None)), RunState(cast(str, _get(value, "state", default=RunState.RUNNING.value))))
+            return RunHandle(
+                identifier,
+                cast(str | None, _get(value, "mlflow_run_id", default=None)),
+                RunState(
+                    cast(str, _get(value, "state", default=RunState.RUNNING.value))
+                ),
+            )
         raise TypeError("run must be a RunHandle or platform Run ID")
 
     def _is_terminal(self, handle: RunHandle, state: RunState, payload: str) -> bool:
@@ -732,14 +980,20 @@ class LocalMlflowTracker:
             return False
         try:
             record = self.metadata_store.get_run(handle.platform_run_id)
-            persisted_state = RunState(_enum_value(_get(record, "state", default="running")))
+            persisted_state = RunState(
+                _enum_value(_get(record, "state", default="running"))
+            )
             if persisted_state is not state:
                 return False
             intent = self.metadata_store.get_finalization_intent(handle.platform_run_id)
             persisted_intent_state = RunState(
-                _enum_value(_get(intent, "desired_state", default=RunState.RUNNING.value))
+                _enum_value(
+                    _get(intent, "desired_state", default=RunState.RUNNING.value)
+                )
             )
-            persisted_payload = str(_get(intent, "terminal_payload_checksum", default=""))
+            persisted_payload = str(
+                _get(intent, "terminal_payload_checksum", default="")
+            )
             return persisted_intent_state is state and persisted_payload == payload
         except Exception:
             # The normal create-intent path reports the durable repository
@@ -747,7 +1001,9 @@ class LocalMlflowTracker:
             # terminal request look idempotent.
             return False
 
-    def _tracking_error(self, operation: str, error: BaseException, run_id: UUID) -> ActionableError:
+    def _tracking_error(
+        self, operation: str, error: BaseException, run_id: UUID
+    ) -> ActionableError:
         del error
         return ActionableError(
             operation=operation,
@@ -757,19 +1013,34 @@ class LocalMlflowTracker:
             correlation_id=str(run_id),
         )
 
-    def _terminalize_platform_failure(self, run_id: UUID, error: ActionableError, values: Mapping[str, object]) -> None:
+    def _terminalize_platform_failure(
+        self, run_id: UUID, error: ActionableError, values: Mapping[str, object]
+    ) -> None:
         if self.metadata_store is None:
             return
         from .duckdb_metadata import RunFinalization
 
         try:
-            finalization = RunFinalization(desired_state=RunState.FAILED, manifest_checksum=None, manifest_uri=None, errors=(error,))
-            self.metadata_store.create_finalization_intent(run_id, finalization, created_at=datetime.now(UTC))
+            finalization = RunFinalization(
+                desired_state=RunState.FAILED,
+                manifest_checksum=None,
+                manifest_uri=None,
+                errors=(error,),
+            )
+            self.metadata_store.create_finalization_intent(
+                run_id, finalization, created_at=datetime.now(UTC)
+            )
             # A failed run with no MLflow mapping is still a valid terminal
             # platform record; the repository's sync flag means there is no
             # pending MLflow work for this failed attempt.
-            self.metadata_store.mark_finalization_mlflow_synced(run_id, attempted_at=datetime.now(UTC))
-            self.metadata_store.finalize_run(run_id, finalization, ended_at=cast(datetime, values.get("ended_at") or datetime.now(UTC)))
+            self.metadata_store.mark_finalization_mlflow_synced(
+                run_id, attempted_at=datetime.now(UTC)
+            )
+            self.metadata_store.finalize_run(
+                run_id,
+                finalization,
+                ended_at=cast(datetime, values.get("ended_at") or datetime.now(UTC)),
+            )
         except Exception:
             # The original allocation error is the useful diagnostic.  Startup
             # reconciliation can inspect the still-running row if this fallback

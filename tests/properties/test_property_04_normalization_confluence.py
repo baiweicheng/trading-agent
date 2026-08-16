@@ -146,9 +146,7 @@ def _draw_action(
         # Generated closes are at least 15 and split ratios are at most 2, so
         # every selected dividend remains below prior_close / split_ratio.
         dividend = draw(
-            st.sampled_from(
-                (None, Decimal("0"), Decimal("0.25"), Decimal("1"))
-            )
+            st.sampled_from((None, Decimal("0"), Decimal("0.25"), Decimal("1")))
         )
     return RawCorporateAction(
         dividend=dividend,
@@ -212,9 +210,7 @@ def normalization_cases(draw: st.DrawFn) -> NormalizationCase:
             )
         )
     )
-    absent_index = draw(
-        st.integers(min_value=1, max_value=len(valid_sessions) - 1)
-    )
+    absent_index = draw(st.integers(min_value=1, max_value=len(valid_sessions) - 1))
     request = ProviderRequest(
         symbols=symbols,
         start=date(2024, 1, 1),
@@ -339,13 +335,9 @@ def _reference_outputs(
         state = states.setdefault(record.symbol, ReferenceState())
         raw_action = record.raw_action
         split_ratio = (
-            Decimal("1")
-            if raw_action.split_ratio is None
-            else raw_action.split_ratio
+            Decimal("1") if raw_action.split_ratio is None else raw_action.split_ratio
         )
-        dividend = (
-            Decimal("0") if raw_action.dividend is None else raw_action.dividend
-        )
+        dividend = Decimal("0") if raw_action.dividend is None else raw_action.dividend
         assert split_ratio is not None
         assert dividend is not None
 

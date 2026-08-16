@@ -99,7 +99,9 @@ def test_legal_job_transitions_are_persisted(
     assert terminal.state is expected
     assert terminal.elapsed_seconds == Decimal("0.25")
     assert repository.store.get_job(job.job_id).state is expected
-    assert [event.sequence for event in repository.store.list_job_events(job.job_id)] == [0, 1, 2, 3]
+    assert [
+        event.sequence for event in repository.store.list_job_events(job.job_id)
+    ] == [0, 1, 2, 3]
     repository.store.close()
 
 
@@ -245,6 +247,8 @@ def test_execute_converts_boundary_exception_persists_diagnostics_and_preserves_
         assert secret not in failed_record.error_json
         assert len(reopened.list_job_events(failing_job)) >= 3
 
-    diagnostics = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+    diagnostics = [
+        json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()
+    ]
     assert all(item["correlation_id"] for item in diagnostics)
     assert secret not in log_path.read_text(encoding="utf-8")

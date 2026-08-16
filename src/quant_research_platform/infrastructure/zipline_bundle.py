@@ -221,9 +221,7 @@ class ZiplineDividend:
             "declared_date": (
                 self.declared_date.isoformat() if self.declared_date else None
             ),
-            "record_date": (
-                self.record_date.isoformat() if self.record_date else None
-            ),
+            "record_date": (self.record_date.isoformat() if self.record_date else None),
             "pay_date": self.pay_date.isoformat() if self.pay_date else None,
         }
 
@@ -266,9 +264,10 @@ class ZiplineBundleLocator:
             raise ValueError("adapter_version must be a safe non-empty name")
         if _SAFE_NAME_PATTERN.fullmatch(self.adapter_version) is None:
             raise ValueError("adapter_version must be a safe non-empty name")
-        if not isinstance(self.bundle_checksum, str) or re.fullmatch(
-            r"[0-9a-f]{64}", self.bundle_checksum
-        ) is None:
+        if (
+            not isinstance(self.bundle_checksum, str)
+            or re.fullmatch(r"[0-9a-f]{64}", self.bundle_checksum) is None
+        ):
             raise ValueError("bundle_checksum must be a lowercase SHA-256 digest")
 
     @property
@@ -495,9 +494,7 @@ class _ZiplineWriter:
                     "start_date": pd.Timestamp(asset.start_date, tz="UTC"),
                     "end_date": pd.Timestamp(asset.end_date, tz="UTC"),
                     "first_traded": pd.Timestamp(asset.start_date, tz="UTC"),
-                    "auto_close_date": pd.Timestamp(
-                        asset.auto_close_date, tz="UTC"
-                    ),
+                    "auto_close_date": pd.Timestamp(asset.auto_close_date, tz="UTC"),
                     "exchange": asset.exchange,
                 }
                 for asset in assets
@@ -576,8 +573,10 @@ class _ZiplineWriter:
             write_assets = getattr(asset_db_writer, "write", None)
             write_daily = getattr(daily_bar_writer, "write", None)
             write_adjustments = getattr(adjustment_writer, "write", None)
-            if not callable(write_assets) or not callable(write_daily) or not callable(
-                write_adjustments
+            if (
+                not callable(write_assets)
+                or not callable(write_daily)
+                or not callable(write_adjustments)
             ):
                 raise ZiplineBundleWriterError(
                     "The pinned Zipline writer extension seam is unavailable"
@@ -725,9 +724,7 @@ class ZiplineBundleAdapter:
                     exchange=identity.calendar.name,
                     start_date=bounds[symbol].first,
                     end_date=bounds[symbol].last,
-                    auto_close_date=self._next_session(
-                        calendar, bounds[symbol].last
-                    ),
+                    auto_close_date=self._next_session(calendar, bounds[symbol].last),
                 )
                 for index, symbol in enumerate(symbols)
             )
@@ -735,20 +732,14 @@ class ZiplineBundleAdapter:
                 [asset.to_content_dict() for asset in assets]
             )
             policy_version = identity.schema_versions.corporate_action_policy_version
-            policy_checksum = sha256_canonical_json(
-                {"version": policy_version}
-            )
+            policy_checksum = sha256_canonical_json({"version": policy_version})
             action_checksum = sha256_canonical_json(
                 {
                     "splits": [split.to_content_dict() for split in splits],
-                    "dividends": [
-                        dividend.to_content_dict() for dividend in dividends
-                    ],
+                    "dividends": [dividend.to_content_dict() for dividend in dividends],
                 }
             )
-            bundle_timestamp = self._deterministic_timestamp(
-                context.handle.snapshot_id
-            )
+            bundle_timestamp = self._deterministic_timestamp(context.handle.snapshot_id)
             self._materialize_cache(
                 cache_dir,
                 context=context,
@@ -907,8 +898,7 @@ class ZiplineBundleAdapter:
             )
         if (
             manifest.snapshot_id != handle.snapshot_id
-            or manifest.content_identity_checksum
-            != handle.content_identity_checksum
+            or manifest.content_identity_checksum != handle.content_identity_checksum
             or manifest.manifest_checksum != handle.manifest_checksum
         ):
             raise _BundleFailure(
@@ -1112,9 +1102,7 @@ class ZiplineBundleAdapter:
             split_ratio = self._decimal_value(
                 self._row_value(row, "split_ratio"), "split_ratio"
             )
-            dividend = self._decimal_value(
-                self._row_value(row, "dividend"), "dividend"
-            )
+            dividend = self._decimal_value(self._row_value(row, "dividend"), "dividend")
             sid = sid_by_symbol[symbol]
             if split_ratio != Decimal("1"):
                 if split_ratio <= 0:

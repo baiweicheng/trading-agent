@@ -64,8 +64,7 @@ class WindowScanner:
 
     def __init__(self, artifact_size: int) -> None:
         self.rows = tuple(
-            {"session": index, "value": index * 2}
-            for index in range(artifact_size)
+            {"session": index, "value": index * 2} for index in range(artifact_size)
         )
         self.calls: list[dict[str, object]] = []
 
@@ -166,9 +165,9 @@ def test_ordinary_table_pagination_is_bounded_and_separate(
     assert repeat.value.rows == expected_first
     assert adjacent.value.rows == expected_adjacent
     assert first.value.rows == repeat.value.rows
-    assert {
-        row["session"] for row in first.value.rows
-    }.isdisjoint(row["session"] for row in adjacent.value.rows)
+    assert {row["session"] for row in first.value.rows}.isdisjoint(
+        row["session"] for row in adjacent.value.rows
+    )
 
     assert len(scanner.calls) == 3
     for call, expected_page in zip(

@@ -991,7 +991,7 @@ class ComparisonService:
     def _metrics_from_rows(
         self, rows: object
     ) -> tuple[EvaluationMetrics | None, EvaluationMetrics | None]:
-        # Canonical table artifacts are wrapped as ``{"rows": ..., 
+        # Canonical table artifacts are wrapped as ``{"rows": ...,
         # "schema_version": ...}``; comparison consumes the row payload and
         # must not interpret the envelope metadata as a metric scope.
         if isinstance(rows, Mapping) and "rows" in rows:

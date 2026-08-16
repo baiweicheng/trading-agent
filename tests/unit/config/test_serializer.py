@@ -59,8 +59,9 @@ def _config(
     )
 
 
-def test_equivalent_non_secret_configurations_serialize_to_identical_canonical_bytes(
-) -> None:
+def test_equivalent_non_secret_configurations_serialize_to_identical_canonical_bytes() -> (
+    None
+):
     serializer = ConfigurationSerializer()
     first_secret = "http://alice:one secret@proxy.example:8080/?token=a/b"
     second_secret = "http://bob:another secret@proxy.example:8080/?token=c/d"
@@ -95,8 +96,9 @@ def test_equivalent_non_secret_configurations_serialize_to_identical_canonical_b
     assert 'http_proxy: "[REDACTED]"' in text
 
 
-def test_marker_reload_is_unresolved_and_non_secret_projection_never_contains_secret(
-) -> None:
+def test_marker_reload_is_unresolved_and_non_secret_projection_never_contains_secret() -> (
+    None
+):
     serializer = ConfigurationSerializer()
     secret = "https://name:p@ss word@proxy.example"
     resolved = _config(https_proxy=secret)

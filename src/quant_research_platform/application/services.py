@@ -152,7 +152,11 @@ class RunQuery:
             and self.created_from > self.created_to
         ):
             raise ValueError("created_from must not be after created_to")
-        if isinstance(self.page, bool) or not isinstance(self.page, int) or self.page < 0:
+        if (
+            isinstance(self.page, bool)
+            or not isinstance(self.page, int)
+            or self.page < 0
+        ):
             raise ValueError("page must be a non-negative integer")
         if (
             isinstance(self.page_size, bool)
@@ -177,7 +181,11 @@ class Page(Generic[T]):
     def __post_init__(self) -> None:
         if not isinstance(self.items, tuple):
             raise TypeError("items must be an immutable tuple")
-        if isinstance(self.page, bool) or not isinstance(self.page, int) or self.page < 0:
+        if (
+            isinstance(self.page, bool)
+            or not isinstance(self.page, int)
+            or self.page < 0
+        ):
             raise ValueError("page must be a non-negative integer")
         if (
             isinstance(self.page_size, bool)
@@ -188,7 +196,9 @@ class Page(Generic[T]):
         if len(self.items) > self.page_size:
             raise ValueError("a page cannot contain more than page_size items")
         if self.total is not None and (
-            isinstance(self.total, bool) or not isinstance(self.total, int) or self.total < 0
+            isinstance(self.total, bool)
+            or not isinstance(self.total, int)
+            or self.total < 0
         ):
             raise ValueError("total must be a non-negative integer or None")
         if not isinstance(self.errors, tuple) or any(
@@ -310,7 +320,9 @@ class ResearchApplication:
                 return self._sanitize_result(resolved, self._redactor)
             config = self._unwrap_result(resolved, "configuration.resolve")
             if not isinstance(config, ResolvedConfig):
-                raise TypeError("configuration manager returned an invalid ResolvedConfig")
+                raise TypeError(
+                    "configuration manager returned an invalid ResolvedConfig"
+                )
             view = non_secret_config(config)
             token = UUID(int=uuid4().int)
             self._configurations[token] = _ConfigurationEntry(
@@ -348,7 +360,10 @@ class ResearchApplication:
         if service is None:
             return Err((self._missing_service("ingestion"),), preserve_order=True)
         if not isinstance(request, IngestionRequest):
-            return Err((self._input_error("request", "an IngestionRequest is required"),), preserve_order=True)
+            return Err(
+                (self._input_error("request", "an IngestionRequest is required"),),
+                preserve_order=True,
+            )
         method = self._method(service, ("ingest", "run", "execute", "ingest_data"))
         if method is None:
             return Err((self._missing_service("ingestion"),), preserve_order=True)
@@ -356,7 +371,12 @@ class ResearchApplication:
             "ingestion.execute",
             method,
             positional=(request, entry.value.config),
-            values={"request": request, "config": entry.value.config, "progress": progress, "progress_callback": progress},
+            values={
+                "request": request,
+                "config": entry.value.config,
+                "progress": progress,
+                "progress_callback": progress,
+            },
             redactor=entry.value.redactor,
         )
 
@@ -374,7 +394,9 @@ class ResearchApplication:
         method = self._method(service, ("list_snapshots", "list"))
         if method is None:
             return self._error_page(
-                "snapshot.list", self._missing_service("snapshot discovery"), resolved_query
+                "snapshot.list",
+                self._missing_service("snapshot discovery"),
+                resolved_query,
             )
         try:
             value = self._invoke(
@@ -383,7 +405,9 @@ class ResearchApplication:
                 values={"query": resolved_query},
             )
             if isinstance(value, Err):
-                return self._page_from_errors(value.errors, resolved_query.page, resolved_query.page_size)
+                return self._page_from_errors(
+                    value.errors, resolved_query.page, resolved_query.page_size
+                )
             return self._page_from(value, resolved_query.page, resolved_query.page_size)
         except Exception as error:
             return self._error_page(
@@ -398,7 +422,9 @@ class ResearchApplication:
         service = self.snapshot_manager or self.inspection_service
         method = self._method(service, ("inspect_snapshot", "inspect"))
         if method is None:
-            return Err((self._missing_service("snapshot inspection"),), preserve_order=True)
+            return Err(
+                (self._missing_service("snapshot inspection"),), preserve_order=True
+            )
         return self._delegate_result(
             "snapshot.inspect",
             method,
@@ -423,7 +449,10 @@ class ResearchApplication:
         if service is None:
             return Err((self._missing_service("backtest"),), preserve_order=True)
         if not isinstance(request, BacktestRequest):
-            return Err((self._input_error("request", "a BacktestRequest is required"),), preserve_order=True)
+            return Err(
+                (self._input_error("request", "a BacktestRequest is required"),),
+                preserve_order=True,
+            )
         method = self._method(service, ("run", "run_backtest", "execute"))
         if method is None:
             return Err((self._missing_service("backtest"),), preserve_order=True)
@@ -431,7 +460,12 @@ class ResearchApplication:
             "backtest.execute",
             method,
             positional=(request, entry.value.config),
-            values={"request": request, "config": entry.value.config, "progress": progress, "progress_callback": progress},
+            values={
+                "request": request,
+                "config": entry.value.config,
+                "progress": progress,
+                "progress_callback": progress,
+            },
             redactor=entry.value.redactor,
         )
 
@@ -457,8 +491,12 @@ class ResearchApplication:
                 values={"query": target_query},
             )
             if isinstance(value, Err):
-                return self._page_from_errors(value.errors, resolved_query.page, resolved_query.page_size)
-            raw_page = self._page_from(value, resolved_query.page, resolved_query.page_size)
+                return self._page_from_errors(
+                    value.errors, resolved_query.page, resolved_query.page_size
+                )
+            raw_page = self._page_from(
+                value, resolved_query.page, resolved_query.page_size
+            )
             summaries = tuple(self._run_summary(item) for item in raw_page.items)
             return Page(
                 items=summaries,
@@ -489,7 +527,9 @@ class ResearchApplication:
             redactor=self._redactor,
         )
 
-    def compare_runs(self, run_ids: Sequence[str | UUID]) -> Result[ComparisonOutput | object]:
+    def compare_runs(
+        self, run_ids: Sequence[str | UUID]
+    ) -> Result[ComparisonOutput | object]:
         """Validate and compare 2–10 successful, checksum-verified runs."""
 
         service = self.comparison_service
@@ -520,7 +560,9 @@ class ResearchApplication:
         """Read one bounded projected table page through the inspection service."""
 
         service = self.inspection_service
-        method = self._method(service, ("page_artifact", "page_table", "page_artifact_table"))
+        method = self._method(
+            service, ("page_artifact", "page_table", "page_artifact_table")
+        )
         if method is None:
             return Err((self._missing_service("artifact paging"),), preserve_order=True)
         return self._delegate_result(
@@ -541,9 +583,13 @@ class ResearchApplication:
         """Open one full artifact through a lazy checksum-verified stream."""
 
         service = self.inspection_service
-        method = self._method(service, ("open_artifact", "open_verified_artifact", "download_artifact"))
+        method = self._method(
+            service, ("open_artifact", "open_verified_artifact", "download_artifact")
+        )
         if method is None:
-            return Err((self._missing_service("artifact streaming"),), preserve_order=True)
+            return Err(
+                (self._missing_service("artifact streaming"),), preserve_order=True
+            )
         return self._delegate_result(
             "artifact.verify",
             method,
@@ -622,7 +668,9 @@ class ResearchApplication:
         return str(value)
 
     @staticmethod
-    def _method(target: object | None, names: Sequence[str]) -> Callable[..., object] | None:
+    def _method(
+        target: object | None, names: Sequence[str]
+    ) -> Callable[..., object] | None:
         if target is None:
             return None
         for name in names:
@@ -644,12 +692,17 @@ class ResearchApplication:
             parameters = tuple(inspect.signature(method).parameters.values())
         except (TypeError, ValueError):
             return method(*positional, **dict(values))
-        if any(parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters):
+        if any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters
+        ):
             names = tuple(
                 parameter.name
                 for parameter in parameters
                 if parameter.kind
-                in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
+                in {
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                }
             )
             consumed = set(names[: len(positional)])
             return method(
@@ -660,11 +713,16 @@ class ResearchApplication:
             parameter
             for parameter in parameters
             if parameter.kind
-            in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
+            in {
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            }
         )
         if len(positional) > len(positional_parameters):
             positional = ()
-        consumed = {parameter.name for parameter in positional_parameters[: len(positional)]}
+        consumed = {
+            parameter.name for parameter in positional_parameters[: len(positional)]
+        }
         accepted = {
             key: value
             for key, value in values.items()
@@ -720,7 +778,9 @@ class ResearchApplication:
     ) -> Err:
         safe_redactor = redactor or self._redactor
         safe_message = safe_redactor.redact_text(str(error)) if str(error) else ""
-        self._log_unexpected(operation, correlation_id, safe_message, error, safe_redactor)
+        self._log_unexpected(
+            operation, correlation_id, safe_message, error, safe_redactor
+        )
         actionable = ActionableError.from_unexpected_exception(
             operation, error, correlation_id=correlation_id
         )
@@ -771,7 +831,9 @@ class ResearchApplication:
     ) -> ActionableError:
         correlation_id = str(uuid4())
         safe_message = self._redactor.redact_text(str(error)) if str(error) else ""
-        self._log_unexpected(operation, correlation_id, safe_message, error, self._redactor)
+        self._log_unexpected(
+            operation, correlation_id, safe_message, error, self._redactor
+        )
         return ActionableError.from_unexpected_exception(
             operation, error, correlation_id=correlation_id
         )
@@ -815,17 +877,16 @@ class ResearchApplication:
 
     @staticmethod
     def _unexpected_error(operation: str, error: BaseException) -> ActionableError:
-        del error
-        return ActionableError.from_unexpected_exception(operation, RuntimeError("sanitized"))
+        # Keep the real exception attached to the local diagnostic conversion;
+        # ActionableError itself still exposes only its sanitized projection.
+        return ActionableError.from_unexpected_exception(operation, error)
 
     @staticmethod
-    def _page_from(
-        value: object, page: int, page_size: int
-    ) -> Page[Any]:
+    def _page_from(value: object, page: int, page_size: int) -> Page[Any]:
         items_value = getattr(value, "items", None)
         if items_value is None:
             items_value = getattr(value, "records", ())
-        if isinstance(items_value, Mapping) or isinstance(items_value, (str, bytes)):
+        if isinstance(items_value, Mapping | str | bytes):
             items = (items_value,)
         else:
             items = tuple(items_value or ())
@@ -898,10 +959,12 @@ class ResearchApplication:
     def _run_summary(record: object) -> RunSummary:
         if isinstance(record, RunSummary):
             return record
+
         def field(name: str, default: object = None) -> object:
             if isinstance(record, Mapping):
                 return record.get(name, default)
             return getattr(record, name, default)
+
         start = field("evaluation_start")
         end = field("evaluation_end")
         if isinstance(start, datetime) or not isinstance(start, date):
@@ -937,13 +1000,18 @@ class ResearchApplication:
 ResearchApplicationFacade = ResearchApplication
 
 __all__ = [
+    "ActionableError",
     "ConfigurationHandle",
     "ConfigurationResolution",
+    "Err",
+    "ErrorCategory",
     "LimitationDisclosure",
+    "Ok",
     "Page",
     "ProgressCallback",
     "ResearchApplication",
     "ResearchApplicationFacade",
     "ResolvedConfigView",
     "RunQuery",
+    "RunState",
 ]

@@ -120,7 +120,9 @@ def test_metadata_migrates_reopens_and_enforces_insert_only_science(
             session_year=2024,
             media_type="application/vnd.apache.parquet",
         )
-        with pytest.raises(ImmutableMetadataError, match="different immutable metadata"):
+        with pytest.raises(
+            ImmutableMetadataError, match="different immutable metadata"
+        ):
             store.record_data_object(conflicting_object, created_at=_NOW)
 
         invalid = store.set_snapshot_availability(
@@ -134,9 +136,9 @@ def test_metadata_migrates_reopens_and_enforces_insert_only_science(
         snapshot = reopened.get_snapshot(manifest.snapshot_id)
         assert snapshot.manifest_uri == manifest_uri
         assert snapshot.availability is SnapshotAvailability.INVALID
-        assert reopened.list_snapshot_objects(manifest.snapshot_id)[0].checksum == _checksum(
-            "a"
-        )
+        assert reopened.list_snapshot_objects(manifest.snapshot_id)[
+            0
+        ].checksum == _checksum("a")
 
 
 def test_job_repository_rejects_illegal_and_terminal_progress_rewrites(

@@ -142,8 +142,7 @@ def test_map_policy_and_lineage_rules_are_quarantined() -> None:
         for record in output.quarantined
     )
     assert any(
-        record.reason_codes[0] == "lineage.raw_record"
-        for record in output.quarantined
+        record.reason_codes[0] == "lineage.raw_record" for record in output.quarantined
     )
     assert len(output.accepted) == 0
 
@@ -164,9 +163,9 @@ def test_equivalent_duplicates_collapse_and_conflicts_quarantine_every_member() 
         adjusted_high=Decimal("104"),
         adjusted_close=Decimal("103"),
     )
-    conflict_output = ValidationService(
-        calendar=FixtureCalendar((session,))
-    ).validate([candidate, conflicting], _expected(session), 1)
+    conflict_output = ValidationService(calendar=FixtureCalendar((session,))).validate(
+        [candidate, conflicting], _expected(session), 1
+    )
 
     assert conflict_output.accepted == ()
     assert len(conflict_output.quarantined) == 2
@@ -181,9 +180,9 @@ def test_equivalent_duplicates_collapse_and_conflicts_quarantine_every_member() 
 def test_gaps_are_explicit_and_do_not_fabricate_bars() -> None:
     first = date(2024, 1, 2)
     second = date(2024, 1, 3)
-    output = ValidationService(
-        calendar=FixtureCalendar((first, second))
-    ).validate([_candidate(session=first)], _expected(first, second), 1)
+    output = ValidationService(calendar=FixtureCalendar((first, second))).validate(
+        [_candidate(session=first)], _expected(first, second), 1
+    )
 
     assert [gap.expected_session for gap in output.gaps] == [second]
     assert output.gaps[0].requested_range == DateRange(first, second)
@@ -267,14 +266,13 @@ def test_report_counts_and_content_identity_are_reconciled_and_deterministic() -
     assert output_one.report.content_checksum == output_two.report.content_checksum
     assert output_one.report.to_content_dict() == output_two.report.to_content_dict()
     assert output_one.report.summary.accepted_row_count == len(output_one.accepted)
-    assert (
-        output_one.report.summary.quarantined_row_count
-        == len(output_one.quarantined)
+    assert output_one.report.summary.quarantined_row_count == len(
+        output_one.quarantined
     )
     assert output_one.report.summary.gap_count == len(output_one.gaps)
-    assert sum(
-        summary.quarantined_count for summary in output_one.per_symbol
-    ) == len(output_one.quarantined)
+    assert sum(summary.quarantined_count for summary in output_one.per_symbol) == len(
+        output_one.quarantined
+    )
     assert output_one.report.quarantined_by_reason == (
         ("ohlc.finite_positive", 1),
         ("session.non_xnys", 1),

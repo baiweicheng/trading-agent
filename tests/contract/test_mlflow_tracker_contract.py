@@ -11,8 +11,11 @@ import pytest
 
 pytest.importorskip("duckdb")
 
-from quant_research_platform.domain.evaluation import MetricScope, calculate_evaluation_metrics
 from quant_research_platform.domain.errors import ActionableError, ErrorCategory
+from quant_research_platform.domain.evaluation import (
+    MetricScope,
+    calculate_evaluation_metrics,
+)
 from quant_research_platform.domain.execution import RunState
 from quant_research_platform.infrastructure.mlflow_tracker import (
     LocalMlflowTracker,
@@ -105,6 +108,7 @@ class RecordingClient:
         self.text: list[tuple[str, str, str]] = []
         self.terminated: list[tuple[str, str]] = []
         self.run_count = 0
+
     def _record(self, event: str) -> None:
         self.events.append(event)
         if self.timeline is not self.events:
@@ -163,7 +167,9 @@ def _metrics() -> object:
     )
 
 
-def _result(*, manifest_checksum: str = MANIFEST, with_bytes: bool = False) -> SimpleNamespace:
+def _result(
+    *, manifest_checksum: str = MANIFEST, with_bytes: bool = False
+) -> SimpleNamespace:
     artifact = SimpleNamespace(
         checksum=ARTIFACT,
         role="equity",
@@ -227,7 +233,9 @@ def test_inputs_are_redacted_and_terminal_mlflow_payload_is_reference_only() -> 
     assert terminal.state is RunState.SUCCEEDED
     assert all("password" not in str(item) for item in client.params)
     assert all("password" not in text for _, text, _ in client.text)
-    reference_text = next(text for _, text, file in client.text if file == "artifact-references.json")
+    reference_text = next(
+        text for _, text, file in client.text if file == "artifact-references.json"
+    )
     assert ARTIFACT in reference_text
     assert "scientific bytes" not in reference_text
     assert not any(name == "log_artifact" for name in dir(client))
@@ -243,12 +251,19 @@ def test_terminal_success_and_failure_order_intent_mlflow_sync_then_metadata() -
     terminal_index = metadata.events.index("metadata.finalize_run")
     mlflow_terminal_index = metadata.timeline.index("mlflow.set_terminated")
     assert intent_index < sync_index < terminal_index
-    assert metadata.timeline.index("metadata.create_finalization_intent") < mlflow_terminal_index < metadata.timeline.index("metadata.mark_finalization_mlflow_synced") < metadata.timeline.index("metadata.finalize_run")
+    assert (
+        metadata.timeline.index("metadata.create_finalization_intent")
+        < mlflow_terminal_index
+        < metadata.timeline.index("metadata.mark_finalization_mlflow_synced")
+        < metadata.timeline.index("metadata.finalize_run")
+    )
     assert client.terminated == [("mlflow-contract-1", "FINISHED")]
     assert mlflow_terminal_index >= 0
 
     tracker2, metadata2, client2 = _tracker()
-    failed_handle = tracker2.allocate_run(**_inputs(run_id=UUID("00000000-0000-0000-0000-000000000102")))
+    failed_handle = tracker2.allocate_run(
+        **_inputs(run_id=UUID("00000000-0000-0000-0000-000000000102"))
+    )
     error = ActionableError(
         operation="backtest.execute",
         category=ErrorCategory.BACKTEST_INVARIANT,
@@ -258,10 +273,14 @@ def test_terminal_success_and_failure_order_intent_mlflow_sync_then_metadata() -
     failed = tracker2.finalize_failure(failed_handle, (error,))
     assert failed.state is RunState.FAILED
     assert client2.terminated == [("mlflow-contract-1", "FAILED")]
-    assert metadata2.events.index("metadata.create_finalization_intent") < metadata2.events.index("metadata.finalize_run")
+    assert metadata2.events.index(
+        "metadata.create_finalization_intent"
+    ) < metadata2.events.index("metadata.finalize_run")
 
 
-def test_exact_terminal_replay_is_idempotent_but_conflicting_payload_is_rejected() -> None:
+def test_exact_terminal_replay_is_idempotent_but_conflicting_payload_is_rejected() -> (
+    None
+):
     tracker, metadata, client = _tracker()
     handle = tracker.allocate_run(**_inputs())
     first = tracker.finalize_success(handle, _result())

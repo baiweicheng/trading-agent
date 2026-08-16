@@ -281,8 +281,7 @@ def _included_path(path: Path, project_root: Path) -> bool:
         return False
     parts = tuple(part.lower() for part in relative.parts)
     if any(
-        part in _EXCLUDED_DIRECTORY_NAMES
-        or part.endswith((".egg-info", ".dist-info"))
+        part in _EXCLUDED_DIRECTORY_NAMES or part.endswith((".egg-info", ".dist-info"))
         for part in parts[:-1]
     ):
         return False
@@ -301,9 +300,7 @@ def _source_files(
         if src.is_dir():
             candidates.append(src)
         else:
-            candidates.extend(
-                path for path in root.iterdir() if path.suffix == ".py"
-            )
+            candidates.extend(path for path in root.iterdir() if path.suffix == ".py")
             candidates.extend(
                 path
                 for path in root.iterdir()

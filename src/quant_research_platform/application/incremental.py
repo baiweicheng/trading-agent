@@ -119,9 +119,7 @@ class IncrementalParent:
         if not isinstance(self.quarantined_rows, tuple):
             raise TypeError("quarantined_rows must be an immutable tuple")
         if any(not isinstance(row, QuarantineRecord) for row in self.quarantined_rows):
-            raise TypeError(
-                "quarantined_rows must contain QuarantineRecord values"
-            )
+            raise TypeError("quarantined_rows must contain QuarantineRecord values")
         if self.validation_report is not None and not isinstance(
             self.validation_report, ValidationReport
         ):
@@ -191,9 +189,13 @@ class IncrementalParent:
         expected_sessions: Mapping[str, Sequence[date]] | None = None,
         validation_report: ValidationReport | None = None,
     ) -> IncrementalParent:
-        expected = () if expected_sessions is None else tuple(
-            (normalize_symbol(symbol), tuple(sessions))
-            for symbol, sessions in expected_sessions.items()
+        expected = (
+            ()
+            if expected_sessions is None
+            else tuple(
+                (normalize_symbol(symbol), tuple(sessions))
+                for symbol, sessions in expected_sessions.items()
+            )
         )
         return cls(
             manifest=manifest,
@@ -559,9 +561,7 @@ class IncrementalMerger:
                 provider_outcomes,
             )
             explicit_failed = _normalized_symbols(failed_symbols)
-            all_failed = _normalized_symbols(
-                (*explicit_failed, *outcome_symbols)
-            )
+            all_failed = _normalized_symbols((*explicit_failed, *outcome_symbols))
             failure_errors = _merge_errors(outcome_failures, all_failed)
 
             symbols = resolved_parent.configured_symbols
@@ -599,16 +599,12 @@ class IncrementalMerger:
             )
 
             parent_rows_by_symbol: dict[str, tuple[DailyBarCandidate, ...]] = {
-                symbol: tuple(
-                    row for row in parent_rows_all if row.symbol == symbol
-                )
+                symbol: tuple(row for row in parent_rows_all if row.symbol == symbol)
                 for symbol in symbols
             }
             retained_symbols = tuple(
                 sorted(
-                    symbol
-                    for symbol in all_failed
-                    if parent_rows_by_symbol.get(symbol)
+                    symbol for symbol in all_failed if parent_rows_by_symbol.get(symbol)
                 )
             )
 
@@ -640,9 +636,7 @@ class IncrementalMerger:
                 parent_rows_all,
                 boundary,
             )
-            normalized_suffix = tuple(
-                self._normalize_suffix(suffix_records, seeds)
-            )
+            normalized_suffix = tuple(self._normalize_suffix(suffix_records, seeds))
             suffix_candidates = tuple(
                 value
                 for value in normalized_suffix
@@ -671,9 +665,7 @@ class IncrementalMerger:
                 retained_parent_coverage=retained_symbols,
                 calendar=self.calendar,
             )
-            merged_records = _unique_records(
-                (*retained_records, *suffix_records)
-            )
+            merged_records = _unique_records((*retained_records, *suffix_records))
             new_rows = tuple(
                 row
                 for row in validation.accepted_rows
@@ -759,11 +751,7 @@ class IncrementalMerger:
         except Exception as error:
             # Application boundary must not leak storage/provider exceptions.
             return Err(
-                (
-                    ActionableError.from_unexpected_exception(
-                        "incremental.merge", error
-                    ),
-                )
+                (ActionableError.from_unexpected_exception("incremental.merge", error),)
             )
 
     def merge_or_raise(
@@ -1006,9 +994,7 @@ class IncrementalMerger:
         boundary = plan.boundary_session
         assert boundary is not None
         return tuple(
-            row
-            for row in rows
-            if row.symbol in failed_set or row.session < boundary
+            row for row in rows if row.symbol in failed_set or row.session < boundary
         )
 
     @staticmethod
@@ -1025,9 +1011,7 @@ class IncrementalMerger:
         return tuple(
             row
             for row in rows
-            if row.symbol in failed_set
-            or row.session is None
-            or row.session < boundary
+            if row.symbol in failed_set or row.session is None or row.session < boundary
         )
 
     @staticmethod
@@ -1148,31 +1132,24 @@ class IncrementalMerger:
         for reference in references:
             symbol = reference.symbol
             year = reference.session_year
-            is_affected = symbol in affected and (
-                year is None or year >= boundary.year
-            )
+            is_affected = symbol in affected and (year is None or year >= boundary.year)
             if reference.object_kind in {ObjectKind.VALIDATION, ObjectKind.QUARANTINE}:
                 is_affected = True
             if is_affected:
-                rebuilt.add(
-                    (reference.object_kind.value, symbol or "", year or -1)
-                )
+                rebuilt.add((reference.object_kind.value, symbol or "", year or -1))
             else:
                 reused.append(reference)
         for row in validation.accepted_rows:
             if row.session >= boundary and row.symbol not in failed_set:
                 rebuilt.add((ObjectKind.NORMALIZED.value, row.symbol, row.session.year))
         for record in records:
-            if (
-                record.provider_date >= boundary
-                and record.symbol not in failed_set
-            ):
+            if record.provider_date >= boundary and record.symbol not in failed_set:
                 rebuilt.add(
                     (ObjectKind.RAW.value, record.symbol, record.provider_date.year)
                 )
-        return tuple(
-            sorted(reused, key=ContentAddressedObjectRef.sort_key)
-        ), tuple(sorted(rebuilt))
+        return tuple(sorted(reused, key=ContentAddressedObjectRef.sort_key)), tuple(
+            sorted(rebuilt)
+        )
 
     @staticmethod
     def _input_error(error: BaseException) -> ActionableError:
@@ -1226,8 +1203,7 @@ def _quarantine_sort_key(
 
 def _row_content(rows: Iterable[DailyBarCandidate]) -> tuple[dict[str, object], ...]:
     return tuple(
-        row.to_content_dict()
-        for row in sorted(rows, key=DailyBarCandidate.sort_key)
+        row.to_content_dict() for row in sorted(rows, key=DailyBarCandidate.sort_key)
     )
 
 
@@ -1235,8 +1211,7 @@ def _quarantine_content(
     rows: Iterable[QuarantineRecord],
 ) -> tuple[dict[str, object], ...]:
     return tuple(
-        row.to_content_dict()
-        for row in sorted(rows, key=_quarantine_sort_key)
+        row.to_content_dict() for row in sorted(rows, key=_quarantine_sort_key)
     )
 
 

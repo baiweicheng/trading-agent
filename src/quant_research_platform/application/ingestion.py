@@ -1560,10 +1560,22 @@ class DataIngestionService:
             None,
         )
         if not callable(method):
-            return ()
+            if role == "validation":
+                # Validation remains publishable through the existing canonical
+                # JSON fallback for compatibility with older injected writers.
+                return ()
+            raise _IngestionFailure(
+                (
+                    self._unexpected_error(
+                        f"ingestion.write.{role}",
+                        TypeError(
+                            f"parquet writer has no required {role} collection method"
+                        ),
+                    ),
+                )
+            )
         kwargs: dict[str, object] = {
             "write_chunk_size": write_chunk_size,
-            "max_rows": write_chunk_size,
             "staging": staging,
         }
         try:
@@ -2018,10 +2030,9 @@ class DataIngestionService:
 
     @staticmethod
     def _unexpected_error(operation: str, error: BaseException) -> ActionableError:
-        del error
-        return ActionableError.from_unexpected_exception(
-            operation, RuntimeError("sanitized")
-        )
+        # The domain conversion keeps the boundary payload generic while the
+        # original exception remains available to the injected diagnostics sink.
+        return ActionableError.from_unexpected_exception(operation, error)
 
     @staticmethod
     def _unwrap_result(value: object, operation: str) -> object:

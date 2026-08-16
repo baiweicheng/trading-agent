@@ -8,7 +8,8 @@ from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from quant_research_platform.domain.canonical import canonical_json_text
 from quant_research_platform.domain.market import (
@@ -18,9 +19,9 @@ from quant_research_platform.domain.market import (
     DateRange,
     ProviderRecord,
     ProviderRequest,
+    QuarantineRecord,
     RawCorporateAction,
     RawDailyBar,
-    QuarantineRecord,
     SymbolValidationSummary,
     ValidationReport,
 )
@@ -236,7 +237,9 @@ def _make_group(
         return CandidateGroup(slot_key, kind, ())
 
     if kind == "non_session":
-        non_session = date(2025, 1, 1) + timedelta(days=symbol_index * 20 + session_index)
+        non_session = date(2025, 1, 1) + timedelta(
+            days=symbol_index * 20 + session_index
+        )
         return CandidateGroup(
             slot_key,
             kind,
@@ -302,9 +305,7 @@ def validation_cases(draw: st.DrawFn) -> ValidationCase:
                 )
             )
 
-    failed_symbols = tuple(
-        symbol for symbol in _SYMBOLS if draw(st.booleans())
-    )
+    failed_symbols = tuple(symbol for symbol in _SYMBOLS if draw(st.booleans()))
     retained_parent_coverage = tuple(
         symbol for symbol in _SYMBOLS if draw(st.booleans())
     )
@@ -537,7 +538,9 @@ def _reference_partition(case: ValidationCase) -> ReferencePartition:
             )
 
     accepted_candidates.sort(key=DailyBarCandidate.sort_key)
-    accepted = tuple(_candidate_projection(candidate) for candidate in accepted_candidates)
+    accepted = tuple(
+        _candidate_projection(candidate) for candidate in accepted_candidates
+    )
     quarantined = tuple(sorted(quarantined, key=_quarantine_sort_key))
     duplicate_counts_tuple = tuple(sorted(duplicate_counts))
     accepted_keys = {
@@ -583,9 +586,7 @@ def _reference_partition(case: ValidationCase) -> ReferencePartition:
         expected_sessions = tuple(case.expected.get(symbol, ()))
         accepted_sessions = sorted(
             session
-            for accepted_symbol, session in {
-                (value[0], value[1]) for value in accepted
-            }
+            for accepted_symbol, session in {(value[0], value[1]) for value in accepted}
             if accepted_symbol == symbol
         )
         covered_range = (

@@ -61,7 +61,6 @@ class FakeStreamlit:
         return False
 
 
-
 def test_safe_presenter_excludes_secrets_and_opaque_handles() -> None:
     from quant_research_platform.ui.presenters import _safe_value
 
@@ -73,7 +72,6 @@ def test_safe_presenter_excludes_secrets_and_opaque_handles() -> None:
     assert result == {"safe_value": "visible", "secret_value": REDACTION_MARKER}
     assert "literal-secret" not in repr(result)
     assert "configuration_handle" not in result
-
 
 
 def test_configuration_presenter_drops_opaque_handle_and_keeps_paths() -> None:
@@ -114,7 +112,6 @@ def test_progress_presenter_redacts_warning_text() -> None:
     assert "literal-secret" not in repr(result)
 
 
-
 def test_presenters_require_limitation_disclosure() -> None:
     result = SimpleNamespace(
         run_id="run-1",
@@ -138,7 +135,6 @@ def test_presenters_require_limitation_disclosure() -> None:
     result.limitation_disclosure = LimitationDisclosure.current()
     rendered = present_backtest_result(result)
     assert rendered["limitation_disclosure"]["version"]
-
 
 
 def test_ordinary_table_presenter_and_component_are_bounded() -> None:
@@ -166,7 +162,6 @@ def test_ordinary_table_presenter_and_component_are_bounded() -> None:
     assert len(dataframe_calls[0][1][0]) == 25
 
 
-
 def test_disclosure_and_download_are_visible_separate_affordances() -> None:
     ui = FakeStreamlit()
     disclosure = LimitationDisclosure.current()
@@ -185,9 +180,7 @@ def test_disclosure_and_download_are_visible_separate_affordances() -> None:
     )
     download = render_artifact_download(artifact, st_module=ui)
     assert download["downloaded"] is False
-    chart = render_chart(
-        {"mark": "line", "data": {"values": []}}, st_module=ui
-    )
+    chart = render_chart({"mark": "line", "data": {"values": []}}, st_module=ui)
     assert chart["mark"] == "line"
     assert any(call[0] == "vega_lite_chart" for call in ui.calls)
     assert all(call[0] != "dataframe" for call in ui.calls)

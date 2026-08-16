@@ -147,9 +147,7 @@ def test_only_explicit_qrp_environment_leaves_are_accepted(tmp_path: Path) -> No
 def test_plain_yaml_cannot_supply_secret_values(tmp_path: Path) -> None:
     manager, _ = _manager(tmp_path)
     secret = "https://user:credential@proxy.invalid"
-    result = manager.resolve(
-        VALID_YAML + f"\nsecrets:\n  https_proxy: {secret}\n", {}
-    )
+    result = manager.resolve(VALID_YAML + f"\nsecrets:\n  https_proxy: {secret}\n", {})
 
     errors = _errors(result)
     assert errors[0].field_path == "secrets.https_proxy"

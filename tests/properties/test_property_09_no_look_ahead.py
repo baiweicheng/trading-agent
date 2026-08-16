@@ -91,7 +91,9 @@ def _row_value(
     if session_index == long_index:
         adjusted_close = Decimal("100")
     elif session_index == short_index:
-        adjusted_close = Decimal("100") + Decimal(case.score_ticks[symbol_index]) / Decimal("10")
+        adjusted_close = Decimal("100") + Decimal(
+            case.score_ticks[symbol_index]
+        ) / Decimal("10")
     sizing_close = base
     if session_index == _SIGNAL_INDEX:
         sizing_close = base
@@ -156,7 +158,11 @@ def _row_projection(
     rows: tuple[dict[str, object], ...],
     through: date | None = None,
 ) -> list[dict[str, object]]:
-    selected = rows if through is None else tuple(row for row in rows if row["session"] <= through)
+    selected = (
+        rows
+        if through is None
+        else tuple(row for row in rows if row["session"] <= through)
+    )
     return [
         {
             "adjusted_close": row["adjusted_close"],
@@ -201,11 +207,7 @@ def _prefix_checksum(
     through: date,
     serializer: Callable[[object], object],
 ) -> str:
-    rows = [
-        serializer(value)
-        for value in values
-        if session_getter(value) <= through
-    ]
+    rows = [serializer(value) for value in values if session_getter(value) <= through]
     return _checksum(role, rows)  # type: ignore[arg-type]
 
 
@@ -324,7 +326,9 @@ def _execute_delivery(
         position_rows = [
             {
                 "amount": quantity,
-                "last_sale_price": rows_by_key[(symbol, session)]["sizing_adjusted_close"],
+                "last_sale_price": rows_by_key[(symbol, session)][
+                    "sizing_adjusted_close"
+                ],
                 "symbol": symbol,
             }
             for symbol, quantity in sorted(positions.items())
@@ -368,8 +372,12 @@ def test_prefix_equivalence_enforces_no_look_ahead(case: PrefixCase) -> None:
         "history", _row_projection(changed_rows)
     )
 
-    baseline_delivery, baseline_fills, baseline_states = _execute_delivery(case, baseline_rows)
-    changed_delivery, changed_fills, changed_states = _execute_delivery(case, changed_rows)
+    baseline_delivery, baseline_fills, baseline_states = _execute_delivery(
+        case, baseline_rows
+    )
+    changed_delivery, changed_fills, changed_states = _execute_delivery(
+        case, changed_rows
+    )
 
     def decision_rows(value: object) -> object:
         return value.to_serializable()
@@ -452,18 +460,24 @@ def test_prefix_equivalence_enforces_no_look_ahead(case: PrefixCase) -> None:
         lambda value: value.to_serializable(),
     )
 
-    assert _first_difference_session(
-        tuple(baseline_delivery.decisions),
-        tuple(changed_delivery.decisions),
-        lambda value: value.signal_session,
-        decision_rows,
-    ) is None
-    assert _first_difference_session(
-        tuple(baseline_delivery.orders),
-        tuple(changed_delivery.orders),
-        lambda value: value.signal_session,
-        order_rows,
-    ) is None
+    assert (
+        _first_difference_session(
+            tuple(baseline_delivery.decisions),
+            tuple(changed_delivery.decisions),
+            lambda value: value.signal_session,
+            decision_rows,
+        )
+        is None
+    )
+    assert (
+        _first_difference_session(
+            tuple(baseline_delivery.orders),
+            tuple(changed_delivery.orders),
+            lambda value: value.signal_session,
+            order_rows,
+        )
+        is None
+    )
     assert (
         _first_difference_session(
             tuple(baseline_fills.fills),

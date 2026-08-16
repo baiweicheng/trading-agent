@@ -11,13 +11,12 @@ from quant_research_platform.domain.errors import Err, LimitationDisclosure, Ok
 from quant_research_platform.domain.execution import (
     CoreBacktestOutput,
     DailyReturn,
+    OrderRecord,
     OrderStatus,
     PortfolioState,
     deterministic_order_id,
-    OrderRecord,
 )
 from quant_research_platform.domain.market import DateRange
-
 
 SESSIONS = (date(2024, 1, 2), date(2024, 1, 3), date(2024, 1, 4))
 EVALUATION_RANGE = DateRange(SESSIONS[0], SESSIONS[-1])
@@ -25,9 +24,30 @@ EVALUATION_RANGE = DateRange(SESSIONS[0], SESSIONS[-1])
 
 def _states() -> tuple[PortfolioState, ...]:
     return (
-        PortfolioState(SESSIONS[0], Decimal("100000"), (), Decimal("0"), Decimal("100000"), Decimal("0")),
-        PortfolioState(SESSIONS[1], Decimal("101000"), (), Decimal("0"), Decimal("101000"), Decimal("0")),
-        PortfolioState(SESSIONS[2], Decimal("100500"), (), Decimal("0"), Decimal("100500"), Decimal("0")),
+        PortfolioState(
+            SESSIONS[0],
+            Decimal("100000"),
+            (),
+            Decimal("0"),
+            Decimal("100000"),
+            Decimal("0"),
+        ),
+        PortfolioState(
+            SESSIONS[1],
+            Decimal("101000"),
+            (),
+            Decimal("0"),
+            Decimal("101000"),
+            Decimal("0"),
+        ),
+        PortfolioState(
+            SESSIONS[2],
+            Decimal("100500"),
+            (),
+            Decimal("0"),
+            Decimal("100500"),
+            Decimal("0"),
+        ),
     )
 
 
@@ -82,7 +102,9 @@ def _snapshot(bars: object) -> SimpleNamespace:
     )
 
 
-def test_clean_evaluation_emits_disclosed_metrics_and_every_canonical_artifact() -> None:
+def test_clean_evaluation_emits_disclosed_metrics_and_every_canonical_artifact() -> (
+    None
+):
     result = EvaluationService().evaluate(
         _core_output(),
         _snapshot(
@@ -100,7 +122,10 @@ def test_clean_evaluation_emits_disclosed_metrics_and_every_canonical_artifact()
     assert evaluated.limitation_disclosure.version == "limitation-disclosure/v1"
     assert evaluated.spy_gaps == ()
     assert evaluated.unfilled_orders[0].status is OrderStatus.UNFILLED
-    assert evaluated.evaluation_result.strategy_metrics.metric("unfilled_orders").value == 1
+    assert (
+        evaluated.evaluation_result.strategy_metrics.metric("unfilled_orders").value
+        == 1
+    )
     assert evaluated.ending_cash_balance == Decimal("100500.000000")
     assert evaluated.total_commissions == Decimal("0.000000")
     assert evaluated.total_slippage == Decimal("0.000000")
@@ -124,7 +149,10 @@ def test_clean_evaluation_emits_disclosed_metrics_and_every_canonical_artifact()
     assert evaluated.artifacts.roles == tuple(sorted(evaluated.artifacts.roles))
     for artifact in evaluated.artifacts:
         assert artifact.byte_size == len(artifact.payload)
-        assert artifact.checksum == __import__("hashlib").sha256(artifact.payload).hexdigest()
+        assert (
+            artifact.checksum
+            == __import__("hashlib").sha256(artifact.payload).hexdigest()
+        )
         assert artifact.payload.endswith(b"\n")
 
 
@@ -164,7 +192,10 @@ def test_evaluation_is_confluent_for_input_order_and_positive_direct_returns() -
     assert isinstance(first, Ok)
     assert isinstance(second, Ok)
     assert first.value.artifact_checksums == second.value.artifact_checksums
-    assert first.value.evaluation_result.to_serializable() == second.value.evaluation_result.to_serializable()
+    assert (
+        first.value.evaluation_result.to_serializable()
+        == second.value.evaluation_result.to_serializable()
+    )
 
     direct_returns = EvaluationService().evaluate(
         _core_output(),
@@ -179,7 +210,9 @@ def test_evaluation_is_confluent_for_input_order_and_positive_direct_returns() -
         evaluation_range=EVALUATION_RANGE,
     )
     assert isinstance(direct_returns, Ok)
-    assert tuple(item.return_value for item in direct_returns.value.benchmark_returns) == (
+    assert tuple(
+        item.return_value for item in direct_returns.value.benchmark_returns
+    ) == (
         Decimal("0.01"),
         Decimal("0.02"),
         Decimal("0.03"),
@@ -195,23 +228,31 @@ class _Batch:
 
 
 class _BarReader:
-    def read(self, *, snapshot: object, symbol: str, start: date, end: date) -> list[_Batch]:
+    def read(
+        self, *, snapshot: object, symbol: str, start: date, end: date
+    ) -> list[_Batch]:
         assert snapshot is not None
         assert symbol == "SPY"
         assert start == EVALUATION_RANGE.start
         assert end == EVALUATION_RANGE.end
         return [
-            _Batch([
-                {"session": SESSIONS[0], "adjusted_close": Decimal("100")},
-                {"session": SESSIONS[1], "adjusted_close": Decimal("102")},
-            ]),
-            _Batch([
-                {"session": SESSIONS[2], "adjusted_close": Decimal("101")},
-            ]),
+            _Batch(
+                [
+                    {"session": SESSIONS[0], "adjusted_close": Decimal("100")},
+                    {"session": SESSIONS[1], "adjusted_close": Decimal("102")},
+                ]
+            ),
+            _Batch(
+                [
+                    {"session": SESSIONS[2], "adjusted_close": Decimal("101")},
+                ]
+            ),
         ]
 
 
-def test_evaluation_consumes_projected_benchmark_batches_without_unbounded_collection() -> None:
+def test_evaluation_consumes_projected_benchmark_batches_without_unbounded_collection() -> (
+    None
+):
     result = EvaluationService(bar_reader=_BarReader()).evaluate(
         _core_output(),
         SimpleNamespace(limitation_disclosure=LimitationDisclosure.current()),

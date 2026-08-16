@@ -208,9 +208,7 @@ class CausalForwardAdjustmentV1:
                 dividend_factor = reference_price / denominator
 
             next_split_factor = cumulative_split_factor * split_ratio
-            next_price_factor = (
-                cumulative_price_factor * split_ratio * dividend_factor
-            )
+            next_price_factor = cumulative_price_factor * split_ratio * dividend_factor
             if not next_split_factor.is_finite() or not next_price_factor.is_finite():
                 return AdjustmentCalculation(
                     split_ratio=split_ratio,
@@ -297,9 +295,7 @@ class NormalizationSeed:
 
     def __post_init__(self) -> None:
         prior = (
-            None
-            if self.prior_raw_close is None
-            else Decimal(str(self.prior_raw_close))
+            None if self.prior_raw_close is None else Decimal(str(self.prior_raw_close))
         )
         price = Decimal(str(self.cumulative_price_factor))
         split = Decimal(str(self.cumulative_split_factor))
@@ -374,12 +370,8 @@ class Normalizer:
                     raise ValueError("seed symbols must not be blank")
                 seed_states[normalized_symbol] = _SymbolState(
                     prior_raw_close=cast(Decimal | None, seed.prior_raw_close),
-                    cumulative_price_factor=cast(
-                        Decimal, seed.cumulative_price_factor
-                    ),
-                    cumulative_split_factor=cast(
-                        Decimal, seed.cumulative_split_factor
-                    ),
+                    cumulative_price_factor=cast(Decimal, seed.cumulative_price_factor),
+                    cumulative_split_factor=cast(Decimal, seed.cumulative_split_factor),
                 )
 
         mapped = [self._map_record(record, calendar) for record in records]
@@ -544,9 +536,7 @@ class Normalizer:
         if not isinstance(record, ProviderRecord):
             raise TypeError("records must contain ProviderRecord values")
         session = (
-            record.provider_date
-            if calendar.is_session(record.provider_date)
-            else None
+            record.provider_date if calendar.is_session(record.provider_date) else None
         )
         return _MappedRecord(record=record, session=session)
 

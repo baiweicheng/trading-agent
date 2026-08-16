@@ -299,9 +299,7 @@ def _failure_reason_from_exception(error: BaseException) -> ProviderFailureReaso
         if isinstance(raw_status, int) and not isinstance(raw_status, bool):
             status_code = raw_status
             break
-    if status_code in {408, 429} or (
-        status_code is not None and status_code >= 500
-    ):
+    if status_code in {408, 429} or (status_code is not None and status_code >= 500):
         return (
             ProviderFailureReason.RATE_LIMITED
             if status_code == 429
@@ -331,11 +329,7 @@ def _failure(symbol: str, reason: ProviderFailureReason) -> SymbolOutcome:
         ProviderFailureReason.RATE_LIMITED,
         ProviderFailureReason.SERVER_ERROR,
     }
-    kind = (
-        ProviderFailureKind.RETRYABLE
-        if retryable
-        else ProviderFailureKind.TERMINAL
-    )
+    kind = ProviderFailureKind.RETRYABLE if retryable else ProviderFailureKind.TERMINAL
     category = (
         ErrorCategory.PROVIDER_RETRYABLE
         if retryable
@@ -351,8 +345,7 @@ def _failure(symbol: str, reason: ProviderFailureReason) -> SymbolOutcome:
         action = "Review the provider response schema and update the adapter policy."
     elif retryable:
         message = (
-            "The yfinance daily-data request encountered a retryable transport "
-            "failure."
+            "The yfinance daily-data request encountered a retryable transport failure."
         )
         action = "Retry the request after the provider becomes available."
     else:
@@ -560,9 +553,7 @@ class YFinanceAdapter(MarketDataProvider):
                         volume=raw_values["Volume"],
                     ),
                     raw_action=RawCorporateAction(
-                        dividend=_raw_numeric(
-                            values.get("Dividends"), self._redactor
-                        ),
+                        dividend=_raw_numeric(values.get("Dividends"), self._redactor),
                         split_ratio=_raw_numeric(
                             values.get("Stock Splits"), self._redactor
                         ),

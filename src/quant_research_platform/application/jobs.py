@@ -204,7 +204,11 @@ class SynchronousJob:
         """Persist the required ``not_started -> running`` transition immediately."""
 
         normalized_stage = JobStage(stage)
-        if normalized_stage in {JobStage.NOT_STARTED, JobStage.COMPLETED, JobStage.FAILED}:
+        if normalized_stage in {
+            JobStage.NOT_STARTED,
+            JobStage.COMPLETED,
+            JobStage.FAILED,
+        }:
             raise ValueError("a running job must start at an active stage")
         self._transition(JobState.RUNNING)
         self._stage = normalized_stage
@@ -237,7 +241,11 @@ class SynchronousJob:
 
         self._require_running()
         normalized_stage = JobStage(stage)
-        if normalized_stage in {JobStage.NOT_STARTED, JobStage.COMPLETED, JobStage.FAILED}:
+        if normalized_stage in {
+            JobStage.NOT_STARTED,
+            JobStage.COMPLETED,
+            JobStage.FAILED,
+        }:
             raise ValueError("running job progress must use an active stage")
         if isinstance(completed_units, bool) or not isinstance(completed_units, int):
             raise TypeError("completed_units must be an integer")
@@ -279,7 +287,11 @@ class SynchronousJob:
                 update,
                 force=False,
                 level="warning" if warnings_added else "info",
-                message=("Job progress warning recorded." if warnings_added else "Job progress updated."),
+                message=(
+                    "Job progress warning recorded."
+                    if warnings_added
+                    else "Job progress updated."
+                ),
                 context=sanitized_context,
             )
         return update
@@ -357,7 +369,9 @@ class SynchronousJob:
         self._warnings.extend(sanitized)
         return tuple(sanitized)
 
-    def _sanitize_context(self, context: Mapping[str, object] | None) -> Mapping[str, object]:
+    def _sanitize_context(
+        self, context: Mapping[str, object] | None
+    ) -> Mapping[str, object]:
         if context is None:
             return {}
         if not isinstance(context, Mapping):

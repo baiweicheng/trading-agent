@@ -142,12 +142,14 @@ def test_assembly_contains_required_identity_versions_checksums_and_counts() -> 
     assert identity.validation_summary.quarantined_row_count == 1
     assert [reference.checksum for reference in identity.objects] == [_B, _A]
     assert [reference.row_count for reference in identity.objects] == [2, 2]
-    assert manifest.to_manifest_dict()["operational_metadata"]["local_manifest_path"] == (
-        "/tmp/first/snapshots/manifest.json"
-    )
+    assert manifest.to_manifest_dict()["operational_metadata"][
+        "local_manifest_path"
+    ] == ("/tmp/first/snapshots/manifest.json")
 
 
-def test_volatile_metadata_relocation_and_attempted_parent_do_not_change_snapshot_id() -> None:
+def test_volatile_metadata_relocation_and_attempted_parent_do_not_change_snapshot_id() -> (
+    None
+):
     first = _assemble(
         created_at=datetime(2024, 1, 3, 21, tzinfo=UTC),
         local_path="/tmp/first/snapshots/manifest.json",
@@ -170,7 +172,9 @@ def test_volatile_metadata_relocation_and_attempted_parent_do_not_change_snapsho
     )
 
 
-def test_assembly_rejects_duplicate_partition_references_and_repeated_validation_artifact() -> None:
+def test_assembly_rejects_duplicate_partition_references_and_repeated_validation_artifact() -> (
+    None
+):
     report = _validation_report()
     duplicate_uri = _objects()[0]
     with pytest.raises(ValueError, match="logical partition URI exactly once"):
@@ -209,7 +213,9 @@ def test_assembly_rejects_duplicate_partition_references_and_repeated_validation
         )
 
 
-def test_snapshot_assembly_requires_a_physical_report_checksum_for_compact_summary() -> None:
+def test_snapshot_assembly_requires_a_physical_report_checksum_for_compact_summary() -> (
+    None
+):
     with pytest.raises(TypeError, match="validation_report_checksum is required"):
         SnapshotManifestAssembler.assemble(
             provider="yfinance",
@@ -223,7 +229,9 @@ def test_snapshot_assembly_requires_a_physical_report_checksum_for_compact_summa
         )
 
 
-def test_assembly_accepts_explicit_operational_metadata_without_leaking_it_into_identity() -> None:
+def test_assembly_accepts_explicit_operational_metadata_without_leaking_it_into_identity() -> (
+    None
+):
     manifest = SnapshotManifestAssembler.assemble(
         provider="yfinance",
         requested_range=DateRange(date(2024, 1, 2), date(2024, 1, 3)),

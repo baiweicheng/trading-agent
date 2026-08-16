@@ -27,13 +27,19 @@ from quant_research_platform.application.backtests import (  # noqa: E402
     BacktestRequest,
     BacktestService,
 )
-from quant_research_platform.application.comparisons import ComparisonService  # noqa: E402
-from quant_research_platform.application.evaluation import EvaluationService  # noqa: E402
+from quant_research_platform.application.comparisons import (
+    ComparisonService,  # noqa: E402
+)
+from quant_research_platform.application.evaluation import (
+    EvaluationService,  # noqa: E402
+)
 from quant_research_platform.application.ingestion import (  # noqa: E402
     DataIngestionService,
     IngestionRequest,
 )
-from quant_research_platform.application.inspection import InspectionService  # noqa: E402
+from quant_research_platform.application.inspection import (
+    InspectionService,  # noqa: E402
+)
 from quant_research_platform.application.jobs import SynchronousJobManager  # noqa: E402
 from quant_research_platform.application.services import (  # noqa: E402
     Page,
@@ -133,7 +139,9 @@ class AcceptanceParquetWriter(pipeline.SnapshotParquetWriter):
             payload = output.getvalue()
             checksum = sha256_bytes(payload)
             relative_uri = f"objects/{schema_name}/sha256={checksum}.parquet"
-            path = output_root / "auxiliary" / schema_name / f"sha256={checksum}.parquet"
+            path = (
+                output_root / "auxiliary" / schema_name / f"sha256={checksum}.parquet"
+            )
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(payload)
             outputs.append(
@@ -290,8 +298,7 @@ def _acceptance_manifest_plain(value: object) -> object:
         return str(value)
     if isinstance(value, dict):
         return {
-            str(key): _acceptance_manifest_plain(item)
-            for key, item in value.items()
+            str(key): _acceptance_manifest_plain(item) for key, item in value.items()
         }
     if isinstance(value, (tuple, list, set, frozenset)):
         return [_acceptance_manifest_plain(item) for item in value]
@@ -318,9 +325,7 @@ def _acceptance_manifest_for_run(
             "strategy_id": config.strategy.identifier,
             "evaluation_range": result.evaluation_range.to_content_dict(),
             "configuration_checksum": sha256_bytes(canonical_json(non_secret)),
-            "artifact_checksums": {
-                item.role: item.checksum for item in links
-            },
+            "artifact_checksums": {item.role: item.checksum for item in links},
         },
         "snapshot_id": result.snapshot_id,
         "strategy_id": config.strategy.identifier,
@@ -432,7 +437,11 @@ class AcceptanceTrackingAdapter(pipeline.TrackingAdapter):
             artifact_kind="run_manifest",
             created_at=datetime(2024, 2, 5, tzinfo=UTC),
         )
-        identifier = result.run_id if isinstance(result.run_id, UUID) else UUID(str(result.run_id))
+        identifier = (
+            result.run_id
+            if isinstance(result.run_id, UUID)
+            else UUID(str(result.run_id))
+        )
         self.run_views.documents[identifier] = {
             "manifest": manifest,
             "configuration": manifest["configuration"],
@@ -512,7 +521,9 @@ class AcceptanceArtifactScanner:
         checksum: str | None = None,
     ) -> tuple[dict[str, object], ...]:
         del predicate
-        references = tuple(refs) if not isinstance(refs, (str, bytes, bytearray)) else ()
+        references = (
+            tuple(refs) if not isinstance(refs, (str, bytes, bytearray)) else ()
+        )
         reference = references[0] if references else None
         checksum_value = checksum or getattr(reference, "checksum", None)
         if not isinstance(checksum_value, str):
@@ -525,9 +536,7 @@ class AcceptanceArtifactScanner:
         relative_uri = metadata.get(
             "relative_uri", getattr(reference, "relative_uri", None)
         )
-        byte_size = metadata.get(
-            "byte_size", getattr(reference, "byte_size", None)
-        )
+        byte_size = metadata.get("byte_size", getattr(reference, "byte_size", None))
         if relative_uri is None or byte_size is None:
             raise ValueError("artifact publication reference is incomplete")
         artifact_reference = ArtifactReference(
@@ -536,9 +545,7 @@ class AcceptanceArtifactScanner:
             relative_uri=str(relative_uri),
             metadata_checksum=metadata_checksum,
         )
-        document = json.loads(
-            b"".join(self.store.stream_artifact(artifact_reference))
-        )
+        document = json.loads(b"".join(self.store.stream_artifact(artifact_reference)))
         if isinstance(document, dict) and isinstance(document.get("rows"), list):
             source_rows = document["rows"]
         elif isinstance(document, list):
@@ -584,9 +591,7 @@ class AcceptanceApplication:
             snapshot_publisher=self.store,
             metadata=self.metadata,
             job_manager=self.jobs,
-            clock=SimpleNamespace(
-                utc_now=lambda: datetime(2024, 2, 5, tzinfo=UTC)
-            ),
+            clock=SimpleNamespace(utc_now=lambda: datetime(2024, 2, 5, tzinfo=UTC)),
             sleep=lambda _seconds: None,
             redactor=Redactor((SECRET,)),
         )
@@ -618,7 +623,9 @@ def _make_application(root: Path) -> tuple[AcceptanceApplication, object, object
     return fixture, resolved.value.handle, resolved.value.view
 
 
-def _wire_backtest(fixture: AcceptanceApplication, handle: object, view: object) -> tuple[object, object, object]:
+def _wire_backtest(
+    fixture: AcceptanceApplication, handle: object, view: object
+) -> tuple[object, object, object]:
     projection = pipeline.PublishedProjection(fixture.store, [])
     tracker_client = pipeline.TrackingClient()
     tracker = LocalMlflowTracker(
@@ -688,12 +695,8 @@ def _assert_accounting(result: object) -> None:
         marked = sum((position.market_value for position in state.positions), 0)
         assert abs(state.portfolio_equity - state.cash_balance - marked) <= 0.01
     order_sessions = {order.order_id: order.execution_session for order in core.orders}
-    assert all(
-        fill.session == order_sessions[fill.order_id] for fill in core.fills
-    )
-    assert all(
-        order.execution_session > order.signal_session for order in core.orders
-    )
+    assert all(fill.session == order_sessions[fill.order_id] for fill in core.fills)
+    assert all(order.execution_session > order.signal_session for order in core.orders)
 
 
 @pytest.mark.integration
@@ -714,18 +717,29 @@ def test_phase1_vertical_slice_acceptance(tmp_path: Path) -> None:
         assert partial_result.limitation_disclosure.data_failures
         assert partial_result.manifest is not None
         partial_roles = {
-            item.object_kind for item in partial_result.manifest.content_identity.objects
+            item.object_kind
+            for item in partial_result.manifest.content_identity.objects
         }
-        assert {ObjectKind.RAW, ObjectKind.NORMALIZED, ObjectKind.QUARANTINE, ObjectKind.GAP} <= partial_roles
+        assert {
+            ObjectKind.RAW,
+            ObjectKind.NORMALIZED,
+            ObjectKind.QUARANTINE,
+            ObjectKind.GAP,
+        } <= partial_roles
         assert all(
             fixture.store.read_object(item.relative_uri)[:4] == b"PAR1"
             for item in partial_result.manifest.content_identity.objects
         )
-        assert fixture.metadata.get_job(partial_result.job_id).state.value == "partially_succeeded"
+        assert (
+            fixture.metadata.get_job(partial_result.job_id).state.value
+            == "partially_succeeded"
+        )
 
         fixture.provider.failed_symbols.clear()
         fixture.provider.include_quality_issue = False
-        clean = fixture.application.ingest(IngestionRequest(), handle, progress=progress.append)
+        clean = fixture.application.ingest(
+            IngestionRequest(), handle, progress=progress.append
+        )
         assert isinstance(clean, Ok), clean
         clean_result = clean.value
         assert clean_result.job_state.value == "succeeded"
@@ -737,23 +751,36 @@ def test_phase1_vertical_slice_acceptance(tmp_path: Path) -> None:
             item.object_kind for item in clean_result.manifest.content_identity.objects
         } == {ObjectKind.RAW, ObjectKind.NORMALIZED}
         assert clean_result.snapshot_id != partial_result.snapshot_id
-        assert isinstance(fixture.snapshot_manager.open_verified(clean_result.snapshot_id), Ok)
-        assert isinstance(fixture.snapshot_manager.open_verified(partial_result.snapshot_id), Ok)
         assert isinstance(
-            fixture.snapshot_manager.replace_manifest(clean_result.snapshot_id, b"mutate"),
+            fixture.snapshot_manager.open_verified(clean_result.snapshot_id), Ok
+        )
+        assert isinstance(
+            fixture.snapshot_manager.open_verified(partial_result.snapshot_id), Ok
+        )
+        assert isinstance(
+            fixture.snapshot_manager.replace_manifest(
+                clean_result.snapshot_id, b"mutate"
+            ),
             Err,
         )
 
-        snapshots = fixture.application.list_snapshots(SnapshotQuery(page=0, page_size=100))
+        snapshots = fixture.application.list_snapshots(
+            SnapshotQuery(page=0, page_size=100)
+        )
         assert isinstance(snapshots, Page)
         assert {item.snapshot_id for item in snapshots.items} >= {
             partial_result.snapshot_id,
             clean_result.snapshot_id,
         }
-        inspected_snapshot = fixture.application.inspect_snapshot(clean_result.snapshot_id)
+        inspected_snapshot = fixture.application.inspect_snapshot(
+            clean_result.snapshot_id
+        )
         assert isinstance(inspected_snapshot, Ok)
         assert inspected_snapshot.value.comparison_ready
-        assert inspected_snapshot.value.limitation_disclosure.version == LimitationDisclosure.current().version
+        assert (
+            inspected_snapshot.value.limitation_disclosure.version
+            == LimitationDisclosure.current().version
+        )
 
         bundle_projection = pipeline.PublishedProjection(fixture.store, [])
         bundle = ZiplineBundleAdapter(
@@ -766,11 +793,17 @@ def test_phase1_vertical_slice_acceptance(tmp_path: Path) -> None:
         assert isinstance(bundle, Ok), bundle
         assert bundle.value.snapshot_id == clean_result.snapshot_id
         assert bundle.value.bundle_name != "latest"
-        bundle_manifest = json.loads((bundle.value.cache_path / "bundle_manifest.json").read_bytes())
+        bundle_manifest = json.loads(
+            (bundle.value.cache_path / "bundle_manifest.json").read_bytes()
+        )
         assert bundle_manifest["bundle_checksum"] == bundle.value.bundle_checksum
 
-        _bundle_projection, reader, tracker_client = _wire_backtest(fixture, handle, view)
-        request = BacktestRequest(clean_result.snapshot_id, DateRange(pipeline.START, pipeline.END))
+        _bundle_projection, reader, tracker_client = _wire_backtest(
+            fixture, handle, view
+        )
+        request = BacktestRequest(
+            clean_result.snapshot_id, DateRange(pipeline.START, pipeline.END)
+        )
         first = fixture.application.run_backtest(request, handle)
         second = fixture.application.run_backtest(request, handle)
         assert isinstance(first, Ok), first
@@ -778,11 +811,23 @@ def test_phase1_vertical_slice_acceptance(tmp_path: Path) -> None:
         _assert_accounting(first.value)
         _assert_accounting(second.value)
         assert first.value.run_id != second.value.run_id
-        assert first.value.core_output.to_scientific_dict() == second.value.core_output.to_scientific_dict()
-        assert first.value.evaluation.artifact_checksums == second.value.evaluation.artifact_checksums
-        assert first.value.evaluation.strategy_equity == second.value.evaluation.strategy_equity
+        assert (
+            first.value.core_output.to_scientific_dict()
+            == second.value.core_output.to_scientific_dict()
+        )
+        assert (
+            first.value.evaluation.artifact_checksums
+            == second.value.evaluation.artifact_checksums
+        )
+        assert (
+            first.value.evaluation.strategy_equity
+            == second.value.evaluation.strategy_equity
+        )
         assert first.value.evaluation.spy_gaps == ()
-        assert first.value.evaluation.limitation_disclosure.version == LimitationDisclosure.current().version
+        assert (
+            first.value.evaluation.limitation_disclosure.version
+            == LimitationDisclosure.current().version
+        )
         assert all(
             sha256_bytes(artifact.payload) == artifact.checksum
             for artifact in first.value.evaluation.artifacts
@@ -821,21 +866,37 @@ def test_phase1_vertical_slice_acceptance(tmp_path: Path) -> None:
         artifact_checksum = first.value.evaluation.artifacts["strategy_equity"].checksum
         opened = fixture.application.open_artifact(artifact_checksum)
         assert isinstance(opened, Ok), opened
-        assert b"".join(opened.value.stream()) == first.value.evaluation.artifacts["strategy_equity"].payload
-        paged = fixture.application.page_artifact(artifact_checksum, page=0, page_size=100)
+        assert (
+            b"".join(opened.value.stream())
+            == first.value.evaluation.artifacts["strategy_equity"].payload
+        )
+        paged = fixture.application.page_artifact(
+            artifact_checksum, page=0, page_size=100
+        )
         assert isinstance(paged, Ok), paged
         assert len(paged.value.rows) <= 100
-        compared = fixture.application.compare_runs((first.value.run_id, second.value.run_id))
+        compared = fixture.application.compare_runs(
+            (first.value.run_id, second.value.run_id)
+        )
         assert isinstance(compared, Ok), compared
         assert compared.value.aligned_sessions
-        assert compared.value.limitation_disclosure.version == LimitationDisclosure.current().version
-        assert compared.value.artifact_checksum == sha256_bytes(compared.value.artifact.bytes)
+        assert (
+            compared.value.limitation_disclosure.version
+            == LimitationDisclosure.current().version
+        )
+        assert compared.value.artifact_checksum == sha256_bytes(
+            compared.value.artifact.bytes
+        )
 
         fixture.provider.failed_symbols.add("MSFT")
-        later_failure = fixture.application.ingest(IngestionRequest(), handle, progress=progress.append)
+        later_failure = fixture.application.ingest(
+            IngestionRequest(), handle, progress=progress.append
+        )
         assert isinstance(later_failure, Ok)
         assert later_failure.value.job_state.value == "partially_succeeded"
-        assert isinstance(fixture.snapshot_manager.open_verified(clean_result.snapshot_id), Ok)
+        assert isinstance(
+            fixture.snapshot_manager.open_verified(clean_result.snapshot_id), Ok
+        )
         assert isinstance(fixture.application.inspect_run(first.value.run_id), Ok)
         assert all(SECRET not in repr(item) for item in progress)
         assert SECRET not in (tmp_path / "diagnostics.jsonl").read_text()
@@ -868,7 +929,9 @@ def test_phase1_vertical_slice_acceptance(tmp_path: Path) -> None:
         _widget(ui.sidebar.radio, "Workflow").set_value("Compare")
         ui.run()
         assert "minimum is 2" in _values(ui.error)
-        _widget(ui.multiselect, "Runs (selection order is preserved)").set_value(["run-2", "run-1"])
+        _widget(ui.multiselect, "Runs (selection order is preserved)").set_value(
+            ["run-2", "run-1"]
+        )
         ui.run()
         _widget(ui.button, "Compare selected runs").click()
         ui.run()

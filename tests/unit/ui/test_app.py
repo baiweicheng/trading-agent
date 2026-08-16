@@ -33,9 +33,7 @@ class FakeStreamlit:
         self._record("file_uploader", *args, **kwargs)
         return None
 
-    def selectbox(
-        self, label: str, options: tuple[str, ...], **kwargs: object
-    ) -> str:
+    def selectbox(self, label: str, options: tuple[str, ...], **kwargs: object) -> str:
         self._record("selectbox", label, options, **kwargs)
         return options[int(kwargs.get("index", 0))]
 
@@ -139,8 +137,9 @@ def _calls(
     return [call for call in ui.calls if call[0] == name]
 
 
-def test_configuration_failure_keeps_ingest_disabled_and_renders_actionable_error(
-) -> None:
+def test_configuration_failure_keeps_ingest_disabled_and_renders_actionable_error() -> (
+    None
+):
     ui = FakeStreamlit(submit=True, ingest=True)
     application = FakeApplication(Err((_error(),)))
 
@@ -172,8 +171,7 @@ def test_valid_resolution_stores_only_opaque_handle_and_ingestion_progress() -> 
     assert ui.session_state[app._STATE_RESULT]["snapshot_id"] == "snapshot-123"
     assert _calls(ui, "button")[-1][2]["disabled"] is False
     assert any(
-        "Snapshot ID: snapshot-123" in str(call[1][0])
-        for call in _calls(ui, "success")
+        "Snapshot ID: snapshot-123" in str(call[1][0]) for call in _calls(ui, "success")
     )
 
 

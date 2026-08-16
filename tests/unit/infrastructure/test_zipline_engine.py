@@ -13,7 +13,9 @@ from quant_research_platform.infrastructure.zipline_engine import CashSafeOpenBl
 SESSION = date(2024, 2, 1)
 
 
-def _order(order_id: str, symbol: str, amount: int, rank: int | None = None) -> dict[str, object]:
+def _order(
+    order_id: str, symbol: str, amount: int, rank: int | None = None
+) -> dict[str, object]:
     value: dict[str, object] = {
         "id": order_id,
         "symbol": symbol,

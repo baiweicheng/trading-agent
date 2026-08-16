@@ -121,13 +121,11 @@ def _assemble_object_references(
         checksum = reference.checksum
         if uri in uri_owners:
             raise ValueError(
-                "objects must reference each logical partition URI exactly once: "
-                f"{uri}"
+                f"objects must reference each logical partition URI exactly once: {uri}"
             )
         if checksum in checksum_owners:
             raise ValueError(
-                "objects must reference each content checksum exactly once: "
-                f"{checksum}"
+                f"objects must reference each content checksum exactly once: {checksum}"
             )
         if (
             reference.object_kind is ObjectKind.VALIDATION
@@ -204,8 +202,7 @@ class SnapshotManifestAssembler:
 
         supplied_validation: ValidationFacts | None = validation
         if supplied_validation is not None and (
-            validation_report is not None
-            or validation_summary is not None
+            validation_report is not None or validation_summary is not None
         ):
             raise ValueError(
                 "supply validation, or validation_report/validation_summary, not both"
@@ -349,9 +346,7 @@ _SNAPSHOT_ID_PATTERN = re.compile(r"^snap_[0-9a-f]{64}$")
 class SnapshotByteStore(Protocol):
     """Read-only byte boundary for published manifests and CAS objects."""
 
-    def read_manifest(
-        self, snapshot_id: str, relative_uri: str | None = None
-    ) -> bytes:
+    def read_manifest(self, snapshot_id: str, relative_uri: str | None = None) -> bytes:
         """Read the complete published manifest for one snapshot."""
 
     def read_object(self, relative_uri: str) -> bytes:
@@ -425,14 +420,14 @@ class LocalPublishedSnapshotStore:
     def __init__(self, root: Path | str) -> None:
         self.root = Path(root).expanduser().resolve(strict=False)
 
-    def read_manifest(
-        self, snapshot_id: str, relative_uri: str | None = None
-    ) -> bytes:
+    def read_manifest(self, snapshot_id: str, relative_uri: str | None = None) -> bytes:
         identifier = _require_snapshot_id(snapshot_id)
         expected = f"snapshots/{identifier}/manifest.json"
         uri = expected if relative_uri is None else _safe_snapshot_uri(relative_uri)
         if uri != expected:
-            raise FileNotFoundError("manifest is not at the published snapshot location")
+            raise FileNotFoundError(
+                "manifest is not at the published snapshot location"
+            )
         return self._read_relative(uri)
 
     def read_object(self, relative_uri: str) -> bytes:
@@ -470,7 +465,9 @@ class LocalPublishedSnapshotStore:
             return ()
         identifiers: list[str] = []
         for candidate in snapshots_root.iterdir():
-            if not candidate.is_dir() or not _SNAPSHOT_ID_PATTERN.fullmatch(candidate.name):
+            if not candidate.is_dir() or not _SNAPSHOT_ID_PATTERN.fullmatch(
+                candidate.name
+            ):
                 continue
             manifest = candidate / "manifest.json"
             if manifest.is_file():
@@ -519,9 +516,15 @@ class SnapshotQuery:
         if self.availability is not None:
             normalized = _availability_text(self.availability)
             if normalized not in {"available", "unavailable", "invalid"}:
-                raise ValueError("availability must be available, unavailable, or invalid")
+                raise ValueError(
+                    "availability must be available, unavailable, or invalid"
+                )
             object.__setattr__(self, "availability", normalized)
-        if isinstance(self.page, bool) or not isinstance(self.page, int) or self.page < 0:
+        if (
+            isinstance(self.page, bool)
+            or not isinstance(self.page, int)
+            or self.page < 0
+        ):
             raise ValueError("page must be a non-negative integer")
         if (
             isinstance(self.page_size, bool)
@@ -555,26 +558,49 @@ class SnapshotSummary:
         object.__setattr__(self, "snapshot_id", _require_snapshot_id(self.snapshot_id))
         if not isinstance(self.requested_range, DateRange):
             raise TypeError("requested_range must be a DateRange")
-        if self.covered_range is not None and not isinstance(self.covered_range, DateRange):
+        if self.covered_range is not None and not isinstance(
+            self.covered_range, DateRange
+        ):
             raise TypeError("covered_range must be a DateRange or None")
-        if not isinstance(self.configured_universe, tuple) or not self.configured_universe:
+        if (
+            not isinstance(self.configured_universe, tuple)
+            or not self.configured_universe
+        ):
             raise TypeError("configured_universe must be a non-empty tuple")
-        normalized = tuple(normalize_symbol(symbol) for symbol in self.configured_universe)
+        normalized = tuple(
+            normalize_symbol(symbol) for symbol in self.configured_universe
+        )
         if len(set(normalized)) != len(normalized):
             raise ValueError("configured_universe must contain distinct symbols")
         object.__setattr__(self, "configured_universe", normalized)
-        object.__setattr__(self, "benchmark_symbol", normalize_symbol(self.benchmark_symbol))
-        object.__setattr__(self, "provider", _required_display_text("provider", self.provider))
+        object.__setattr__(
+            self, "benchmark_symbol", normalize_symbol(self.benchmark_symbol)
+        )
+        object.__setattr__(
+            self, "provider", _required_display_text("provider", self.provider)
+        )
         object.__setattr__(self, "availability", _availability_text(self.availability))
-        object.__setattr__(self, "created_at", _require_aware_datetime("created_at", self.created_at))
-        object.__setattr__(self, "manifest_checksum", _require_digest("manifest_checksum", self.manifest_checksum))
+        object.__setattr__(
+            self, "created_at", _require_aware_datetime("created_at", self.created_at)
+        )
+        object.__setattr__(
+            self,
+            "manifest_checksum",
+            _require_digest("manifest_checksum", self.manifest_checksum),
+        )
         object.__setattr__(
             self,
             "content_identity_checksum",
-            _require_digest("content_identity_checksum", self.content_identity_checksum),
+            _require_digest(
+                "content_identity_checksum", self.content_identity_checksum
+            ),
         )
         if self.parent_snapshot_id is not None:
-            object.__setattr__(self, "parent_snapshot_id", _require_snapshot_id(self.parent_snapshot_id))
+            object.__setattr__(
+                self,
+                "parent_snapshot_id",
+                _require_snapshot_id(self.parent_snapshot_id),
+            )
         if not isinstance(self.comparison_ready, bool):
             raise TypeError("comparison_ready must be a bool")
         if not isinstance(self.limitation_disclosure, LimitationDisclosure):
@@ -584,7 +610,11 @@ class SnapshotSummary:
         ):
             raise TypeError("validation_summary must be a ValidationSummary or None")
         if self.integrity_error is not None:
-            object.__setattr__(self, "integrity_error", _required_display_text("integrity_error", self.integrity_error))
+            object.__setattr__(
+                self,
+                "integrity_error",
+                _required_display_text("integrity_error", self.integrity_error),
+            )
 
     @property
     def failed_symbols(self) -> tuple[str, ...]:
@@ -636,9 +666,15 @@ class SnapshotReadiness:
                 raise TypeError(f"{field_name} must be a bool")
         for field_name in ("failed_symbols", "stale_symbols", "reasons"):
             value = getattr(self, field_name)
-            if not isinstance(value, tuple) or any(not isinstance(item, str) for item in value):
+            if not isinstance(value, tuple) or any(
+                not isinstance(item, str) for item in value
+            ):
                 raise TypeError(f"{field_name} must be an immutable tuple of strings")
-        if isinstance(self.gap_count, bool) or not isinstance(self.gap_count, int) or self.gap_count < 0:
+        if (
+            isinstance(self.gap_count, bool)
+            or not isinstance(self.gap_count, int)
+            or self.gap_count < 0
+        ):
             raise ValueError("gap_count must be a non-negative integer")
 
 
@@ -807,7 +843,9 @@ def _datetime_value(value: object, field_name: str) -> datetime:
     try:
         parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError as error:
-        raise ValueError(f"manifest field {field_name} must be an ISO timestamp") from error
+        raise ValueError(
+            f"manifest field {field_name} must be an ISO timestamp"
+        ) from error
     return _require_aware_datetime(field_name, parsed)
 
 
@@ -907,7 +945,9 @@ def _parse_disclosure(
     expected_checksum = sha256_bytes(
         canonical_json({"version": version, "lines": list(lines)})
     )
-    if expected_checksum != _string(identity["text_checksum"], "limitation_disclosure.text_checksum"):
+    if expected_checksum != _string(
+        identity["text_checksum"], "limitation_disclosure.text_checksum"
+    ):
         raise ValueError("manifest limitation disclosure checksum does not match")
     return disclosure
 
@@ -916,7 +956,13 @@ def _parse_manifest_document(document: Mapping[str, Any]) -> SnapshotManifest:
     top = _exact_mapping(
         document,
         "manifest",
-        {"snapshot_id", "content_identity", "operational_metadata", "lineage", "limitation_disclosure"},
+        {
+            "snapshot_id",
+            "content_identity",
+            "operational_metadata",
+            "lineage",
+            "limitation_disclosure",
+        },
     )
     content = _exact_mapping(
         top["content_identity"],
@@ -966,10 +1012,14 @@ def _parse_manifest_document(document: Mapping[str, Any]) -> SnapshotManifest:
         provider=_string(content["provider"], "content_identity.provider"),
         requested_range=_date_range(content["requested_range"], "requested_range"),
         covered_range=_optional_date_range(content["covered_range"], "covered_range"),
-        configured_universe=_string_tuple(content["configured_universe"], "configured_universe"),
+        configured_universe=_string_tuple(
+            content["configured_universe"], "configured_universe"
+        ),
         benchmark_symbol=_string(content["benchmark_symbol"], "benchmark_symbol"),
         calendar=calendar,
-        configuration_checksum=_string(content["configuration_checksum"], "configuration_checksum"),
+        configuration_checksum=_string(
+            content["configuration_checksum"], "configuration_checksum"
+        ),
         objects=objects,
         validation_report_checksum=_string(
             content["validation_report_checksum"], "validation_report_checksum"
@@ -981,7 +1031,14 @@ def _parse_manifest_document(document: Mapping[str, Any]) -> SnapshotManifest:
     operational = _exact_mapping(
         top["operational_metadata"],
         "operational_metadata",
-        {"created_at", "provider_requests", "detection_times", "job_id", "local_manifest_path", "notes"},
+        {
+            "created_at",
+            "provider_requests",
+            "detection_times",
+            "job_id",
+            "local_manifest_path",
+            "notes",
+        },
     )
     requests_value = operational["provider_requests"]
     if not isinstance(requests_value, list):
@@ -991,18 +1048,32 @@ def _parse_manifest_document(document: Mapping[str, Any]) -> SnapshotManifest:
         request = _exact_mapping(
             item,
             "operational_metadata.provider_requests[]",
-            {"request_content_key", "retrieved_at", "response_status", "request_id", "retrieval_started_at"},
+            {
+                "request_content_key",
+                "retrieved_at",
+                "response_status",
+                "request_id",
+                "retrieval_started_at",
+            },
         )
         requests.append(
             ProviderRequestMetadata(
-                request_content_key=_string(request["request_content_key"], "request_content_key"),
+                request_content_key=_string(
+                    request["request_content_key"], "request_content_key"
+                ),
                 retrieved_at=_datetime_value(request["retrieved_at"], "retrieved_at"),
                 response_status=_string(request["response_status"], "response_status"),
-                request_id=(None if request["request_id"] is None else _string(request["request_id"], "request_id")),
+                request_id=(
+                    None
+                    if request["request_id"] is None
+                    else _string(request["request_id"], "request_id")
+                ),
                 retrieval_started_at=(
                     None
                     if request["retrieval_started_at"] is None
-                    else _datetime_value(request["retrieval_started_at"], "retrieval_started_at")
+                    else _datetime_value(
+                        request["retrieval_started_at"], "retrieval_started_at"
+                    )
                 ),
             )
         )
@@ -1016,7 +1087,11 @@ def _parse_manifest_document(document: Mapping[str, Any]) -> SnapshotManifest:
         detection_times=tuple(
             _datetime_value(item, "detection_time") for item in detection_value
         ),
-        job_id=(None if operational["job_id"] is None else _string(operational["job_id"], "job_id")),
+        job_id=(
+            None
+            if operational["job_id"] is None
+            else _string(operational["job_id"], "job_id")
+        ),
         local_manifest_path=(
             None
             if operational["local_manifest_path"] is None
@@ -1058,7 +1133,10 @@ def _decode_manifest(raw: bytes) -> SnapshotManifest:
             "Repair or republish the complete snapshot manifest.",
         )
     try:
-        def reject_duplicate_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+
+        def reject_duplicate_pairs(
+            pairs: list[tuple[str, object]],
+        ) -> dict[str, object]:
             result: dict[str, object] = {}
             local_keys: set[str] = set()
             for key, value in pairs:
@@ -1068,7 +1146,9 @@ def _decode_manifest(raw: bytes) -> SnapshotManifest:
                 result[key] = value
             return result
 
-        document = json.loads(raw.decode("utf-8"), object_pairs_hook=reject_duplicate_pairs)
+        document = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=reject_duplicate_pairs
+        )
         if not isinstance(document, Mapping):
             raise ValueError("manifest root is not a mapping")
         if canonical_json(document) != raw:
@@ -1267,12 +1347,20 @@ class SnapshotManager:
                 except _SnapshotFailure:
                     continue
                 summary = _summary_from_manifest(manifest, availability="available")
-                if resolved_query.provider is not None and summary.provider != resolved_query.provider:
+                if (
+                    resolved_query.provider is not None
+                    and summary.provider != resolved_query.provider
+                ):
                     continue
-                if resolved_query.availability is not None and summary.availability != resolved_query.availability:
+                if (
+                    resolved_query.availability is not None
+                    and summary.availability != resolved_query.availability
+                ):
                     continue
                 summaries.append(summary)
-            summaries.sort(key=lambda item: (-item.created_at.timestamp(), item.snapshot_id))
+            summaries.sort(
+                key=lambda item: (-item.created_at.timestamp(), item.snapshot_id)
+            )
             start = resolved_query.page * resolved_query.page_size
             end = start + resolved_query.page_size
             return SnapshotPage(
@@ -1348,10 +1436,16 @@ class SnapshotManager:
 
     mutate_snapshot = update_snapshot
 
-    def _open_manifest(self, snapshot_id: str) -> tuple[SnapshotManifest, VerifiedSnapshotHandle]:
+    def _open_manifest(
+        self, snapshot_id: str
+    ) -> tuple[SnapshotManifest, VerifiedSnapshotHandle]:
         identifier = _require_snapshot_id(snapshot_id)
         record = self._indexed_record(identifier)
-        if record is not None and _availability_text(getattr(record, "availability", "available")) != "available":
+        if (
+            record is not None
+            and _availability_text(getattr(record, "availability", "available"))
+            != "available"
+        ):
             raise _SnapshotFailure(
                 ErrorCategory.STORAGE_IO,
                 "The snapshot is indexed but currently unavailable for use.",
@@ -1377,7 +1471,9 @@ class SnapshotManager:
 
     def _read_manifest_only(self, snapshot_id: str) -> SnapshotManifest:
         identifier = _require_snapshot_id(snapshot_id)
-        raw = self._read_manifest_bytes(identifier, f"snapshots/{identifier}/manifest.json")
+        raw = self._read_manifest_bytes(
+            identifier, f"snapshots/{identifier}/manifest.json"
+        )
         manifest = _decode_manifest(raw)
         if manifest.snapshot_id != identifier:
             raise _payload_error(
@@ -1393,7 +1489,10 @@ class SnapshotManager:
         try:
             record = self._metadata.get_snapshot(identifier)
         except Exception as error:
-            if error.__class__.__name__ in {"MetadataNotFoundError", "SnapshotNotFoundError"}:
+            if error.__class__.__name__ in {
+                "MetadataNotFoundError",
+                "SnapshotNotFoundError",
+            }:
                 raise _SnapshotFailure(
                     ErrorCategory.STORAGE_IO,
                     "The published snapshot is not available in the metadata index.",
@@ -1565,14 +1664,19 @@ class SnapshotManager:
             field_path="snapshot.validation_report_checksum",
         )
 
-    def _verify_references(self, manifest: SnapshotManifest, record: object | None) -> None:
+    def _verify_references(
+        self, manifest: SnapshotManifest, record: object | None
+    ) -> None:
         verified_checksums: set[str] = set()
         for reference in manifest.content_identity.objects:
             data = self._read_object_bytes(
                 reference.relative_uri,
                 checksum=reference.checksum,
             )
-            if len(data) != reference.byte_size or sha256_bytes(data) != reference.checksum:
+            if (
+                len(data) != reference.byte_size
+                or sha256_bytes(data) != reference.checksum
+            ):
                 raise _SnapshotFailure(
                     ErrorCategory.INTEGRITY_CHECKSUM,
                     "A published snapshot object failed checksum or byte-size verification.",
@@ -1596,15 +1700,41 @@ class SnapshotManager:
     def _assert_index_matches(self, record: object, manifest: SnapshotManifest) -> None:
         comparisons = (
             ("snapshot_id", getattr(record, "snapshot_id", None), manifest.snapshot_id),
-            ("manifest_checksum", getattr(record, "manifest_checksum", None), manifest.manifest_checksum),
-            ("content_identity_checksum", getattr(record, "content_identity_checksum", None), manifest.content_identity_checksum),
-            ("configuration_checksum", getattr(record, "configuration_checksum", None), manifest.content_identity.configuration_checksum),
-            ("provider", getattr(record, "provider", None), manifest.content_identity.provider),
-            ("benchmark_symbol", getattr(record, "benchmark_symbol", None), manifest.content_identity.benchmark_symbol),
-            ("comparison_ready", getattr(record, "comparison_ready", None), manifest.content_identity.validation_summary.comparison_ready),
+            (
+                "manifest_checksum",
+                getattr(record, "manifest_checksum", None),
+                manifest.manifest_checksum,
+            ),
+            (
+                "content_identity_checksum",
+                getattr(record, "content_identity_checksum", None),
+                manifest.content_identity_checksum,
+            ),
+            (
+                "configuration_checksum",
+                getattr(record, "configuration_checksum", None),
+                manifest.content_identity.configuration_checksum,
+            ),
+            (
+                "provider",
+                getattr(record, "provider", None),
+                manifest.content_identity.provider,
+            ),
+            (
+                "benchmark_symbol",
+                getattr(record, "benchmark_symbol", None),
+                manifest.content_identity.benchmark_symbol,
+            ),
+            (
+                "comparison_ready",
+                getattr(record, "comparison_ready", None),
+                manifest.content_identity.validation_summary.comparison_ready,
+            ),
         )
         for field_name, actual, expected in comparisons:
-            normalized_actual = _availability_text(actual) if field_name == "availability" else actual
+            normalized_actual = (
+                _availability_text(actual) if field_name == "availability" else actual
+            )
             if normalized_actual != expected:
                 raise _payload_error(
                     "Snapshot metadata does not match the published manifest.",
@@ -1612,10 +1742,30 @@ class SnapshotManager:
                     field_path=f"snapshot.{field_name}",
                 )
         for field_name, actual, expected in (
-            ("requested_start", getattr(record, "requested_start", None), manifest.content_identity.requested_range.start),
-            ("requested_end", getattr(record, "requested_end", None), manifest.content_identity.requested_range.end),
-            ("covered_start", getattr(record, "covered_start", None), manifest.content_identity.covered_range.start if manifest.content_identity.covered_range else None),
-            ("covered_end", getattr(record, "covered_end", None), manifest.content_identity.covered_range.end if manifest.content_identity.covered_range else None),
+            (
+                "requested_start",
+                getattr(record, "requested_start", None),
+                manifest.content_identity.requested_range.start,
+            ),
+            (
+                "requested_end",
+                getattr(record, "requested_end", None),
+                manifest.content_identity.requested_range.end,
+            ),
+            (
+                "covered_start",
+                getattr(record, "covered_start", None),
+                manifest.content_identity.covered_range.start
+                if manifest.content_identity.covered_range
+                else None,
+            ),
+            (
+                "covered_end",
+                getattr(record, "covered_end", None),
+                manifest.content_identity.covered_range.end
+                if manifest.content_identity.covered_range
+                else None,
+            ),
         ):
             if actual != expected:
                 raise _payload_error(
@@ -1651,7 +1801,9 @@ class SnapshotManager:
                         reference.session_year,
                         ordinal,
                     )
-                    for ordinal, reference in enumerate(manifest.content_identity.objects)
+                    for ordinal, reference in enumerate(
+                        manifest.content_identity.objects
+                    )
                 )
             )
             actual_rows = tuple(

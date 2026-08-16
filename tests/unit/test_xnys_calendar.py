@@ -75,9 +75,11 @@ def test_completed_sessions_stop_at_official_close_and_warn_for_incomplete_range
 def test_month_end_sessions_and_canonical_schedule_digest_use_reviewed_rows(
     calendar: XNYSCalendar,
 ) -> None:
-    assert calendar.month_end_sessions(
-        date(2024, 5, 1), date(2024, 7, 31)
-    ) == (date(2024, 5, 31), date(2024, 6, 28), date(2024, 7, 31))
+    assert calendar.month_end_sessions(date(2024, 5, 1), date(2024, 7, 31)) == (
+        date(2024, 5, 31),
+        date(2024, 6, 28),
+        date(2024, 7, 31),
+    )
 
     expected_rows = [
         {

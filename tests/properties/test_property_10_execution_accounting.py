@@ -101,7 +101,9 @@ def _adverse_price(
     with localcontext() as context:
         context.prec = 40
         rate = slippage_bps / _BPS
-        candidate = base_open * (Decimal("1") + rate if quantity > 0 else Decimal("1") - rate)
+        candidate = base_open * (
+            Decimal("1") + rate if quantity > 0 else Decimal("1") - rate
+        )
     if not candidate.is_finite() or candidate <= _ZERO:
         return None
     return _money(candidate)
@@ -171,7 +173,11 @@ def execution_cases(draw: st.DrawFn) -> ExecutionCase:
     # when the generated cash balance is zero.
     if not any(quantities):
         quantities[0] = 1
-    positions = {symbol: quantity for symbol, quantity in zip(symbols, quantities, strict=True) if quantity}
+    positions = {
+        symbol: quantity
+        for symbol, quantity in zip(symbols, quantities, strict=True)
+        if quantity
+    }
     cash = _price(draw(st.integers(min_value=0, max_value=2_000_000)))
     marks = draw(
         st.lists(
@@ -259,8 +265,7 @@ def _reference_execution(case: ExecutionCase) -> ReferenceResult:
     """Execute without importing or calling any production arithmetic helper."""
 
     remaining = {
-        str(order["id"]): cast(int, order["amount"])
-        - cast(int, order.get("filled", 0))
+        str(order["id"]): cast(int, order["amount"]) - cast(int, order.get("filled", 0))
         for order in case.orders
     }
     by_id = {str(order["id"]): order for order in case.orders}
@@ -275,19 +280,11 @@ def _reference_execution(case: ExecutionCase) -> ReferenceResult:
 
     ordered_ids = [
         *sorted(
-            (
-                order_id
-                for order_id, quantity in remaining.items()
-                if quantity < 0
-            ),
+            (order_id for order_id, quantity in remaining.items() if quantity < 0),
             key=lambda order_id: (str(by_id[order_id]["symbol"]), order_id),
         ),
         *sorted(
-            (
-                order_id
-                for order_id, quantity in remaining.items()
-                if quantity > 0
-            ),
+            (order_id for order_id, quantity in remaining.items() if quantity > 0),
             key=lambda order_id: (
                 sort_rank(by_id[order_id]),
                 str(by_id[order_id]["symbol"]),
@@ -304,14 +301,19 @@ def _reference_execution(case: ExecutionCase) -> ReferenceResult:
         if base_open is None:
             unfilled.append(
                 ReferenceUnfilled(
-                    order_id, symbol, requested_remaining, "missing_or_non_positive_adjusted_open"
+                    order_id,
+                    symbol,
+                    requested_remaining,
+                    "missing_or_non_positive_adjusted_open",
                 )
             )
             continue
         fill_price = _adverse_price(base_open, requested_remaining, case.slippage_bps)
         if fill_price is None:
             unfilled.append(
-                ReferenceUnfilled(order_id, symbol, requested_remaining, "invalid_adjusted_open")
+                ReferenceUnfilled(
+                    order_id, symbol, requested_remaining, "invalid_adjusted_open"
+                )
             )
             continue
 
@@ -380,7 +382,9 @@ def _reference_execution(case: ExecutionCase) -> ReferenceResult:
 
     return ReferenceResult(
         cash=cash,
-        positions={symbol: quantity for symbol, quantity in positions.items() if quantity},
+        positions={
+            symbol: quantity for symbol, quantity in positions.items() if quantity
+        },
         fills=tuple(fills),
         unfilled=tuple(unfilled),
     )
@@ -451,13 +455,21 @@ def test_whole_share_execution_and_accounting_invariants(case: ExecutionCase) ->
         assert actual_unfilled.quantity == reference_unfilled.quantity
         assert actual_unfilled.reason == reference_unfilled.reason
         assert actual_unfilled.quantity != 0
-    assert all(error.symbol == unfilled.symbol for error, unfilled in zip(actual.actionable_errors, actual.unfilled_orders, strict=True))
+    assert all(
+        error.symbol == unfilled.symbol
+        for error, unfilled in zip(
+            actual.actionable_errors, actual.unfilled_orders, strict=True
+        )
+    )
 
     # The independent model explicitly checks the largest affordable buy after
     # every preceding sell and buy, including commission rates above 100%.
     buy_fills = {fill.order_id: fill for fill in expected.fills if fill.quantity > 0}
     assert all(fill.quantity > 0 for fill in actual.fills if fill.order_id in buy_fills)
-    assert all(isinstance(quantity, int) and quantity >= 0 for quantity in actual.positions.values())
+    assert all(
+        isinstance(quantity, int) and quantity >= 0
+        for quantity in actual.positions.values()
+    )
     assert all(isinstance(cast(int, order["amount"]), int) for order in case.orders)
     assert all(isinstance(fill.quantity, int) for fill in actual.fills)
 

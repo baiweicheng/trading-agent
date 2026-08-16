@@ -188,11 +188,30 @@ def test_universe_is_normalized_ordered_unique_and_derives_position_count() -> N
         ),
         (lambda: ExecutionConfig(commission_bps=Decimal("NaN")), r"finite|greater"),
         (lambda: ExecutionConfig(slippage_bps=Decimal("Infinity")), r"finite|less"),
-        (lambda: ExecutionConfig(commission_bps=Decimal("-0.01")), r"greater than or equal"),
+        (
+            lambda: ExecutionConfig(commission_bps=Decimal("-0.01")),
+            r"greater than or equal",
+        ),
         (lambda: ExecutionConfig(initial_equity_usd=Decimal("99999.99")), r"fixed"),
-        (lambda: DataConfig(requested_range=DateRangeConfig(**REQUESTED_RANGE), benchmark="QQQ"), r"SPY"),
-        (lambda: DataConfig(requested_range=DateRangeConfig(**REQUESTED_RANGE), batch_size=11), r"less than or equal"),
-        (lambda: DataConfig(requested_range=DateRangeConfig(**REQUESTED_RANGE), staleness_sessions=253), r"less than or equal"),
+        (
+            lambda: DataConfig(
+                requested_range=DateRangeConfig(**REQUESTED_RANGE), benchmark="QQQ"
+            ),
+            r"SPY",
+        ),
+        (
+            lambda: DataConfig(
+                requested_range=DateRangeConfig(**REQUESTED_RANGE), batch_size=11
+            ),
+            r"less than or equal",
+        ),
+        (
+            lambda: DataConfig(
+                requested_range=DateRangeConfig(**REQUESTED_RANGE),
+                staleness_sessions=253,
+            ),
+            r"less than or equal",
+        ),
         (
             lambda: DataConfig(
                 requested_range=DateRangeConfig(**REQUESTED_RANGE),
@@ -202,12 +221,16 @@ def test_universe_is_normalized_ordered_unique_and_derives_position_count() -> N
         ),
         (
             lambda: DataConfig(
-                requested_range=DateRangeConfig(**REQUESTED_RANGE), write_chunk_rows=100_001
+                requested_range=DateRangeConfig(**REQUESTED_RANGE),
+                write_chunk_rows=100_001,
             ),
             r"less than or equal",
         ),
         (lambda: UiConfig(page_size=101), r"less than or equal"),
-        (lambda: RuntimeConfig(deterministic_seed=4_294_967_296), r"less than or equal"),
+        (
+            lambda: RuntimeConfig(deterministic_seed=4_294_967_296),
+            r"less than or equal",
+        ),
     ],
 )
 def test_invalid_values_and_cross_field_relationships_are_rejected(
@@ -228,10 +251,14 @@ def test_position_count_must_not_exceed_normalized_universe_size() -> None:
 @pytest.mark.parametrize(
     "factory",
     [
-        lambda: DateRangeConfig(start=date(2024, 1, 1), end=date(2024, 1, 2), extra=True),
+        lambda: DateRangeConfig(
+            start=date(2024, 1, 1), end=date(2024, 1, 2), extra=True
+        ),
         lambda: PathConfig(extra=True),
         lambda: RetryPolicyConfig(extra=True),
-        lambda: DataConfig(requested_range=DateRangeConfig(**REQUESTED_RANGE), extra=True),
+        lambda: DataConfig(
+            requested_range=DateRangeConfig(**REQUESTED_RANGE), extra=True
+        ),
         lambda: StrategyConfig(extra=True),
         lambda: ExecutionConfig(extra=True),
         lambda: UiConfig(extra=True),
@@ -239,7 +266,9 @@ def test_position_count_must_not_exceed_normalized_universe_size() -> None:
         lambda: SecretConfig(extra=True),
         lambda: _resolved_config(extra=True),
         lambda: _resolved_config(paths={"extra": True}),
-        lambda: _resolved_config(data={"requested_range": REQUESTED_RANGE, "extra": True}),
+        lambda: _resolved_config(
+            data={"requested_range": REQUESTED_RANGE, "extra": True}
+        ),
     ],
 )
 def test_extra_keys_are_forbidden_at_every_configuration_level(factory: Any) -> None:
@@ -251,6 +280,8 @@ def test_models_are_frozen_and_secret_values_remain_secret_strings() -> None:
     config = _resolved_config(secrets={"https_proxy": "https://user:password@proxy"})
 
     assert config.secrets.https_proxy is not None
-    assert config.secrets.https_proxy.get_secret_value() == "https://user:password@proxy"
+    assert (
+        config.secrets.https_proxy.get_secret_value() == "https://user:password@proxy"
+    )
     with pytest.raises(ValidationError, match="frozen"):
         config.ui.page_size = 1

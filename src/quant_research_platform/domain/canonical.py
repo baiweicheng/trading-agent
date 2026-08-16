@@ -189,13 +189,16 @@ def canonicalize(value: object) -> CanonicalJSONValue:
 
 def canonical_json_text(value: object) -> str:
     """Encode *value* as whitespace-free, NFC-normalized canonical JSON plus LF."""
-    return json.dumps(
-        canonicalize(value),
-        allow_nan=False,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ) + "\n"
+    return (
+        json.dumps(
+            canonicalize(value),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    )
 
 
 def canonical_json(value: object) -> bytes:

@@ -181,9 +181,7 @@ def _backtest_result() -> object:
             for index in range(2, 6)
         ),
         "drawdown": ({"session": date(2024, 1, 2), "drawdown": 0},),
-        "strategy_monthly_returns": (
-            {"month": "2024-01", "return": "0.10"},
-        ),
+        "strategy_monthly_returns": ({"month": "2024-01", "return": "0.10"},),
         "artifacts": (payload,),
         "limitation_disclosure": _DISCLOSURE,
         "ending_cash_balance": "90000",
@@ -640,9 +638,9 @@ def test_apptest_compare_preserves_order_provenance_curves_download_and_bounds(
     assert _widget(app_test.button, "Compare selected runs").disabled is True
 
     selected = ["run-2", "run-1"]
-    _widget(
-        app_test.multiselect, "Runs (selection order is preserved)"
-    ).set_value(selected)
+    _widget(app_test.multiselect, "Runs (selection order is preserved)").set_value(
+        selected
+    )
     app_test.run()
     _widget(app_test.button, "Compare selected runs").click()
     app_test.run()
@@ -661,9 +659,9 @@ def test_apptest_compare_preserves_order_provenance_curves_download_and_bounds(
     assert "Limitations and assumptions" in _values(app_test.subheader)
 
     all_run_ids = [f"run-{index}" for index in range(1, 12)]
-    _widget(
-        app_test.multiselect, "Runs (selection order is preserved)"
-    ).set_value(all_run_ids)
+    _widget(app_test.multiselect, "Runs (selection order is preserved)").set_value(
+        all_run_ids
+    )
     app_test.run()
     assert "maximum is 10" in _values(app_test.error)
     assert _widget(app_test.button, "Compare selected runs").disabled is True

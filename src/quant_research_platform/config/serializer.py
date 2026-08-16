@@ -351,9 +351,7 @@ def require_resolved_secrets(
     if unknown:
         raise ValueError("Unknown secret field requirement")
 
-    requested_field_names = {
-        _SECRET_PATHS[field_path] for field_path in requested
-    }
+    requested_field_names = {_SECRET_PATHS[field_path] for field_path in requested}
     missing = tuple(
         f"secrets.{field_name}"
         for field_name in _SECRET_FIELDS
@@ -441,9 +439,7 @@ class Redactor:
     ) -> dict[str, str]:
         """Produce log-safe headers, retaining only explicitly safe header values."""
 
-        permitted = _SAFE_LOG_HEADER_NAMES | {
-            name.casefold() for name in allowed_names
-        }
+        permitted = _SAFE_LOG_HEADER_NAMES | {name.casefold() for name in allowed_names}
         sanitized: dict[str, str] = {}
         for name, value in headers.items():
             redacted_name = self.redact_text(name)

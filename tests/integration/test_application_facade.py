@@ -163,6 +163,8 @@ class FacadeIngestion:
                 correlation_id=outcome.value.correlation_id,
             )
         )
+
+
 class ExplodingBacktest:
     def run(
         self, request: object, config: object, *, progress: object = None
@@ -661,9 +663,10 @@ def test_facade_inspects_verified_runs_pages_artifacts_and_comparison_provenance
     assert compared.value.environment_differences
     assert compared.value.limitation_disclosure.version == "limitation-disclosure/v1"
     assert SECRET not in str(compared.value)
-    assert compared.value.artifact.checksum == sha256(
-        compared.value.artifact.payload
-    ).hexdigest()
+    assert (
+        compared.value.artifact.checksum
+        == sha256(compared.value.artifact.payload).hexdigest()
+    )
 
     too_few = application.compare_runs((RUN_ONE,))
     too_many = application.compare_runs(tuple(UUID(int=1000 + i) for i in range(11)))

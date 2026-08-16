@@ -17,13 +17,19 @@ from quant_research_platform.infrastructure.parquet_store import (
     ParquetStore,
     ScanPredicate,
 )
-from quant_research_platform.infrastructure.schemas import DAILY_BAR_V1, RAW_V1, canonical_table
+from quant_research_platform.infrastructure.schemas import (
+    DAILY_BAR_V1,
+    RAW_V1,
+    canonical_table,
+)
 
 _CHECKSUM_A = "a" * 64
 _CHECKSUM_B = "b" * 64
 
 
-def _raw_row(day: date, *, symbol: str = "AAPL", close: float = 101.0) -> dict[str, object]:
+def _raw_row(
+    day: date, *, symbol: str = "AAPL", close: float = 101.0
+) -> dict[str, object]:
     return {
         "provider": "yfinance",
         "request_content_key": _CHECKSUM_A,
@@ -75,7 +81,9 @@ def _reader_rows(reader: pa.RecordBatchReader) -> list[dict[str, object]]:
     return pa.Table.from_batches(batches).to_pylist() if batches else []
 
 
-def test_raw_writes_are_separate_sorted_chunked_and_single_row_group(tmp_path: Path) -> None:
+def test_raw_writes_are_separate_sorted_chunked_and_single_row_group(
+    tmp_path: Path,
+) -> None:
     store = ParquetStore(tmp_path, write_chunk_size=2)
     rows = [_raw_row(date(2024, 1, day), close=float(100 + day)) for day in (4, 2, 3)]
 
@@ -84,14 +92,17 @@ def test_raw_writes_are_separate_sorted_chunked_and_single_row_group(tmp_path: P
     assert len(objects) == 2
     assert [object_.row_count for object_ in objects] == [2, 1]
     assert {object_.partition.object_kind for object_ in objects} == {ObjectKind.RAW}
-    assert {
-        object_.relative_uri.split("/sha256=")[0] for object_ in objects
-    } == {"raw/provider=yfinance/symbol=AAPL/year=2024"}
+    assert {object_.relative_uri.split("/sha256=")[0] for object_ in objects} == {
+        "raw/provider=yfinance/symbol=AAPL/year=2024"
+    }
     for object_ in objects:
         parquet_file = pq.ParquetFile(object_.path)
         assert parquet_file.metadata.num_row_groups == 1
         assert parquet_file.metadata.row_group(0).num_rows <= 2
-        assert object_.checksum == __import__("hashlib").sha256(object_.path.read_bytes()).hexdigest()
+        assert (
+            object_.checksum
+            == __import__("hashlib").sha256(object_.path.read_bytes()).hexdigest()
+        )
 
     rows_from_scan = _reader_rows(
         store.scan(
@@ -107,7 +118,9 @@ def test_raw_writes_are_separate_sorted_chunked_and_single_row_group(tmp_path: P
         date(2024, 1, 2),
         date(2024, 1, 3),
     ]
-    assert all(set(row) == {"symbol", "provider_date", "close"} for row in rows_from_scan)
+    assert all(
+        set(row) == {"symbol", "provider_date", "close"} for row in rows_from_scan
+    )
     assert store.last_scan_plan is not None
     assert store.last_scan_plan.columns == ("symbol", "provider_date", "close")
     assert store.last_scan_plan.batch_size == 1
@@ -115,7 +128,9 @@ def test_raw_writes_are_separate_sorted_chunked_and_single_row_group(tmp_path: P
     assert store.last_scan_plan.years == (2024,)
 
 
-def test_normalized_writes_partition_by_symbol_year_and_scan_pushes_predicates(tmp_path: Path) -> None:
+def test_normalized_writes_partition_by_symbol_year_and_scan_pushes_predicates(
+    tmp_path: Path,
+) -> None:
     store = ParquetStore(tmp_path, write_chunk_size=2)
     rows = [
         _normalized_row(date(2024, 1, 3), symbol="AAPL", close=103.0),
@@ -136,12 +151,17 @@ def test_normalized_writes_partition_by_symbol_year_and_scan_pushes_predicates(t
         )
     )
 
-    assert [(object_.partition.symbol, object_.partition.session_year) for object_ in objects] == [
+    assert [
+        (object_.partition.symbol, object_.partition.session_year)
+        for object_ in objects
+    ] == [
         ("AAPL", 2023),
         ("AAPL", 2024),
         ("MSFT", 2024),
     ]
-    assert all(object_.partition.object_kind is ObjectKind.NORMALIZED for object_ in objects)
+    assert all(
+        object_.partition.object_kind is ObjectKind.NORMALIZED for object_ in objects
+    )
     assert result == [
         {"symbol": "AAPL", "session": date(2024, 1, 3), "adjusted_close": 103.0}
     ]
@@ -150,14 +170,18 @@ def test_normalized_writes_partition_by_symbol_year_and_scan_pushes_predicates(t
     assert store.last_scan_plan.has_expression
 
 
-def test_canonical_permutations_produce_byte_identical_final_files(tmp_path: Path) -> None:
+def test_canonical_permutations_produce_byte_identical_final_files(
+    tmp_path: Path,
+) -> None:
     rows = [
         _normalized_row(date(2024, 1, 4), symbol="AAPL", close=104.0),
         _normalized_row(date(2024, 1, 2), symbol="AAPL", close=102.0),
         _normalized_row(date(2024, 1, 3), symbol="AAPL", close=103.0),
     ]
     first = ParquetStore(tmp_path / "first", write_chunk_size=2).write_normalized(rows)
-    second = ParquetStore(tmp_path / "second", write_chunk_size=2).write_normalized(list(reversed(rows)))
+    second = ParquetStore(tmp_path / "second", write_chunk_size=2).write_normalized(
+        list(reversed(rows))
+    )
 
     assert [(item.relative_uri, item.checksum, item.row_count) for item in first] == [
         (item.relative_uri, item.checksum, item.row_count) for item in second
@@ -166,7 +190,9 @@ def test_canonical_permutations_produce_byte_identical_final_files(tmp_path: Pat
         assert original.path.read_bytes() == repeated.path.read_bytes()
 
 
-def test_writer_accepts_bounded_canonical_arrow_batches_and_scan_stays_streaming(tmp_path: Path) -> None:
+def test_writer_accepts_bounded_canonical_arrow_batches_and_scan_stays_streaming(
+    tmp_path: Path,
+) -> None:
     store = ParquetStore(tmp_path, write_chunk_size=2)
     canonical = canonical_table(
         RAW_V1,
@@ -250,9 +276,7 @@ def test_parquet_schema_options_and_checksum_are_pinned_for_final_bytes(
     from quant_research_platform.infrastructure.schemas import schema_for
 
     store = ParquetStore(tmp_path, write_chunk_size=2)
-    objects = store.write_raw(
-        [_raw_row(date(2024, 1, day)) for day in (2, 3, 4)]
-    )
+    objects = store.write_raw([_raw_row(date(2024, 1, day)) for day in (2, 3, 4)])
 
     assert PARQUET_WRITE_OPTIONS["version"] == "2.6"
     assert PARQUET_WRITE_OPTIONS["compression"] == "zstd"
@@ -265,9 +289,10 @@ def test_parquet_schema_options_and_checksum_are_pinned_for_final_bytes(
         column = metadata.row_group(0).column(0)
         assert column.compression == "ZSTD"
         assert column.statistics is None
-        assert object_.checksum == __import__("hashlib").sha256(
-            object_.path.read_bytes()
-        ).hexdigest()
+        assert (
+            object_.checksum
+            == __import__("hashlib").sha256(object_.path.read_bytes()).hexdigest()
+        )
 
 
 def test_chunked_writes_and_filtered_scans_use_only_streaming_seams(
@@ -276,14 +301,8 @@ def test_chunked_writes_and_filtered_scans_use_only_streaming_seams(
     import pyarrow.dataset as ds
 
     stream = _LengthHintGuard(
-        [
-            _raw_row(date(2024, 1, day), symbol="AAPL")
-            for day in (2, 3, 4)
-        ]
-        + [
-            _raw_row(date(2025, 1, day), symbol="MSFT")
-            for day in (2, 3)
-        ]
+        [_raw_row(date(2024, 1, day), symbol="AAPL") for day in (2, 3, 4)]
+        + [_raw_row(date(2025, 1, day), symbol="MSFT") for day in (2, 3)]
     )
     scanner_calls: list[dict[str, object]] = []
     factory_calls: list[tuple[tuple[str, ...], dict[str, object]]] = []

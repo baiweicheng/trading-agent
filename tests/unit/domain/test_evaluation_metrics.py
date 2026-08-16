@@ -33,11 +33,21 @@ from quant_research_platform.domain.execution import (
 )
 
 
-def _close(actual: Decimal, expected: Decimal, tolerance: Decimal = Decimal("1e-24")) -> None:
+def _close(
+    actual: Decimal, expected: Decimal, tolerance: Decimal = Decimal("1e-24")
+) -> None:
     assert abs(actual - expected) <= tolerance
 
 
-def _fill(*, symbol: str, quantity: int, base_open: str, fill_price: str, commission: str, ordinal: int) -> FillRecord:
+def _fill(
+    *,
+    symbol: str,
+    quantity: int,
+    base_open: str,
+    fill_price: str,
+    commission: str,
+    ordinal: int,
+) -> FillRecord:
     signal = date(2024, 1, 31)
     execution = date(2024, 2, 1)
     order_id = deterministic_order_id(
@@ -75,7 +85,10 @@ def test_total_return_and_cagr_cover_empty_single_and_return_series_inputs() -> 
 
     single = calculate_total_return([Decimal("100")])
     assert single.value == Decimal("0")
-    assert calculate_cagr([Decimal("100")]).null_reason is MetricNullReason.INSUFFICIENT_OBSERVATIONS
+    assert (
+        calculate_cagr([Decimal("100")]).null_reason
+        is MetricNullReason.INSUFFICIENT_OBSERVATIONS
+    )
 
     returns = calculate_total_return_from_returns([Decimal("0.10"), Decimal("-0.05")])
     assert returns.name is MetricName.TOTAL_RETURN
@@ -112,7 +125,9 @@ def test_sample_volatility_zero_rate_sharpe_and_signed_drawdown() -> None:
     assert drawdown.value == Decimal("-0.30")
 
 
-def test_turnover_commissions_slippage_and_monthly_compounding_use_declared_formulas() -> None:
+def test_turnover_commissions_slippage_and_monthly_compounding_use_declared_formulas() -> (
+    None
+):
     fills = (
         _fill(
             symbol="AAPL",

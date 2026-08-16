@@ -230,9 +230,7 @@ def _candidate_stream() -> tuple[_StreamingCandidates, dict[str, tuple[date, ...
         for symbol in ("AAPL", "MSFT")
     }
     values = tuple(
-        _candidate(index, symbol)
-        for symbol in ("AAPL", "MSFT")
-        for index in range(8)
+        _candidate(index, symbol) for symbol in ("AAPL", "MSFT") for index in range(8)
     )
     return _StreamingCandidates(values), expected
 

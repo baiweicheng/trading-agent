@@ -88,12 +88,8 @@ class ValidationOutput:
             raise TypeError("duplicate_counts must be an immutable tuple")
         if any(not isinstance(row, DailyBarCandidate) for row in self.accepted_rows):
             raise TypeError("accepted_rows may contain only DailyBarCandidate values")
-        if any(
-            not isinstance(row, QuarantineRecord) for row in self.quarantined_rows
-        ):
-            raise TypeError(
-                "quarantined_rows may contain only QuarantineRecord values"
-            )
+        if any(not isinstance(row, QuarantineRecord) for row in self.quarantined_rows):
+            raise TypeError("quarantined_rows may contain only QuarantineRecord values")
         if any(not isinstance(gap, DataGap) for gap in self.gaps):
             raise TypeError("gaps may contain only DataGap values")
         if any(
@@ -124,12 +120,16 @@ class ValidationOutput:
         if summary.gap_count != len(self.gaps):
             raise ValueError("report gap count does not match gap details")
 
-        object.__setattr__(self, "accepted_rows", tuple(sorted(
-            self.accepted_rows, key=DailyBarCandidate.sort_key
-        )))
-        object.__setattr__(self, "quarantined_rows", tuple(sorted(
-            self.quarantined_rows, key=_quarantine_sort_key
-        )))
+        object.__setattr__(
+            self,
+            "accepted_rows",
+            tuple(sorted(self.accepted_rows, key=DailyBarCandidate.sort_key)),
+        )
+        object.__setattr__(
+            self,
+            "quarantined_rows",
+            tuple(sorted(self.quarantined_rows, key=_quarantine_sort_key)),
+        )
         object.__setattr__(self, "gaps", tuple(sorted(self.gaps, key=DataGap.sort_key)))
         object.__setattr__(
             self,
@@ -353,9 +353,7 @@ class ValidationService:
                 accepted_rows.append(representative.candidate)
                 assert representative.symbol is not None
                 assert representative.session is not None
-                accepted_by_symbol[representative.symbol].append(
-                    representative.session
-                )
+                accepted_by_symbol[representative.symbol].append(representative.session)
                 key = SessionKey(representative.symbol, representative.session)
                 if len(current_group) > 1:
                     duplicate_by_key[key] = len(current_group) - 1
@@ -409,20 +407,14 @@ class ValidationService:
         symbols.update(failed)
         symbols.update(retained)
 
-        accepted_keys = {
-            (row.symbol, row.session)
-            for row in accepted_rows
-        }
+        accepted_keys = {(row.symbol, row.session) for row in accepted_rows}
         gaps: list[DataGap] = []
         summaries: list[SymbolValidationSummary] = []
         normalized_requested_range = requested_range
 
-        benchmark_requested = (
-            effective_benchmark is not None
-            and (
-                effective_benchmark in expected_by_symbol
-                or effective_comparison_range is not None
-            )
+        benchmark_requested = effective_benchmark is not None and (
+            effective_benchmark in expected_by_symbol
+            or effective_comparison_range is not None
         )
         if benchmark_requested:
             assert effective_benchmark is not None
@@ -481,14 +473,9 @@ class ValidationService:
                 and effective_benchmark is not None
                 and symbol == effective_benchmark
             ):
-                comparison_ready = (
-                    symbol in expected_by_symbol
-                    and not any(
-                        _date_in_range(
-                            gap.expected_session, effective_comparison_range
-                        )
-                        for gap in symbol_gaps
-                    )
+                comparison_ready = symbol in expected_by_symbol and not any(
+                    _date_in_range(gap.expected_session, effective_comparison_range)
+                    for gap in symbol_gaps
                 )
 
             summaries.append(
@@ -820,8 +807,10 @@ def _candidate_sort_key(value: DailyBarCandidate) -> tuple[str, str, str, str]:
         getattr(value, "symbol", None)
     )
     session = _as_date(getattr(value, "session", None))
-    session_text = session.isoformat() if session is not None else _sort_text(
-        getattr(value, "session", None)
+    session_text = (
+        session.isoformat()
+        if session is not None
+        else _sort_text(getattr(value, "session", None))
     )
     return (
         symbol,

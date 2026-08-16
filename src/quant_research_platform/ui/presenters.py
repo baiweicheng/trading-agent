@@ -202,9 +202,7 @@ def present_limitation_disclosure(
         raise TypeError("disclosure must be a LimitationDisclosure")
     return {
         "version": _safe_value(disclosure.version, redactor),
-        "lines": [
-            _redact_text(line, redactor) for line in disclosure.lines()
-        ],
+        "lines": [_redact_text(line, redactor) for line in disclosure.lines()],
         "data_failures": [
             present_actionable_error(error, redactor=redactor)
             for error in disclosure.data_failures
@@ -380,9 +378,7 @@ def present_table_page(
             else len(rows) > limit or len(shown_rows) == limit
         )
     result: Presentation = {
-        "rows": [
-            _safe_value(row, redactor) for row in shown_rows
-        ],
+        "rows": [_safe_value(row, redactor) for row in shown_rows],
         "page": _safe_value(page_number, redactor),
         "page_size": limit,
         "row_count": len(shown_rows),
@@ -424,9 +420,7 @@ def present_ingestion_result(
         ),
         "snapshot_reused": bool(_field(result, "snapshot_reused", False)),
         "validation": _safe_value(report or validation, redactor),
-        "errors": present_errors(
-            _items(_field(result, "errors")), redactor=redactor
-        ),
+        "errors": present_errors(_items(_field(result, "errors")), redactor=redactor),
         "limitation_disclosure": present_limitation_disclosure(
             disclosure, redactor=redactor
         ),
@@ -478,9 +472,7 @@ def present_evaluation_output(
             present_artifact(artifact, redactor=redactor)
             for artifact in artifact_values
         ],
-        "spy_gaps": _safe_value(
-            _items(_field(output, "spy_gaps")), redactor
-        ),
+        "spy_gaps": _safe_value(_items(_field(output, "spy_gaps")), redactor),
         "unfilled_order_count": _count(_field(output, "unfilled_orders")),
         "unfilled_diagnostics": present_errors(
             _items(_field(output, "unfilled_diagnostics")), redactor=redactor
@@ -488,9 +480,7 @@ def present_evaluation_output(
         "ending_cash_balance": _safe_value(
             _field(output, "ending_cash_balance"), redactor
         ),
-        "total_commissions": _safe_value(
-            _field(output, "total_commissions"), redactor
-        ),
+        "total_commissions": _safe_value(_field(output, "total_commissions"), redactor),
         "total_slippage": _safe_value(_field(output, "total_slippage"), redactor),
         "limitation_disclosure": present_limitation_disclosure(
             disclosure, redactor=redactor
@@ -616,9 +606,7 @@ def present_comparison_output(
             _items(_field(output, "environment_differences")), redactor
         ),
         "artifact": present_artifact(_field(output, "artifact"), redactor=redactor),
-        "artifact_checksum": _safe_value(
-            _field(output, "artifact_checksum"), redactor
-        ),
+        "artifact_checksum": _safe_value(_field(output, "artifact_checksum"), redactor),
         "limitation_disclosure": present_limitation_disclosure(
             disclosure, redactor=redactor
         ),

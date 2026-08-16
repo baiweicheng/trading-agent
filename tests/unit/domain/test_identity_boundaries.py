@@ -62,8 +62,7 @@ def _snapshot_manifest(
         object_kind=ObjectKind.NORMALIZED,
         checksum=object_checksum,
         relative_uri=(
-            "objects/normalized/symbol=AAPL/year=2024/"
-            f"sha256={object_checksum}.parquet"
+            f"objects/normalized/symbol=AAPL/year=2024/sha256={object_checksum}.parquet"
         ),
         schema_version="daily_bar_v1",
         row_count=row_count,
@@ -273,11 +272,14 @@ def test_job_state_machine_accepts_only_declared_transitions(
 ) -> None:
     assert is_legal_job_transition(current, target, operation=operation) is expected
     if expected:
-        assert require_legal_job_transition(
-            current,
-            target,
-            operation=operation,
-        ) is target
+        assert (
+            require_legal_job_transition(
+                current,
+                target,
+                operation=operation,
+            )
+            is target
+        )
     else:
         with pytest.raises(ValueError, match="illegal job state transition"):
             require_legal_job_transition(current, target, operation=operation)

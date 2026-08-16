@@ -88,8 +88,7 @@ def _history_rows(
                 }
             )
         post_signal_close = str(
-            Decimal(str(values["post_signal_close"]))
-            * Decimal(post_signal_multiplier)
+            Decimal(str(values["post_signal_close"])) * Decimal(post_signal_multiplier)
         )
         rows.append(
             {
@@ -193,13 +192,13 @@ def test_daily_clean_momentum_boundary_matches_reviewed_decision_artifact() -> N
         "1/2",
         "0/1",
     ]
+    assert RationalWeight.sum(
+        decision.target_weight for decision in decisions
+    ) == RationalWeight(1, 1)
     assert (
-        RationalWeight.sum(decision.target_weight for decision in decisions)
-        == RationalWeight(1, 1)
+        sha256_bytes(canonical_json(_decision_artifact(decisions)))
+        == expected["decision_artifact_checksum"]
     )
-    assert sha256_bytes(canonical_json(_decision_artifact(decisions))) == expected[
-        "decision_artifact_checksum"
-    ]
 
 
 def test_daily_clean_causal_delivery_and_deterministic_artifacts() -> None:
@@ -242,9 +241,7 @@ def test_daily_clean_causal_delivery_and_deterministic_artifacts() -> None:
             return self.rows
 
     first_reader = Reader(baseline_rows)
-    first_result = CausalDecisionDelivery(
-        first_reader, calendar=calendar
-    ).deliver(
+    first_result = CausalDecisionDelivery(first_reader, calendar=calendar).deliver(
         snapshot,
         signal,
         portfolio,
@@ -282,9 +279,10 @@ def test_daily_clean_causal_delivery_and_deterministic_artifacts() -> None:
         sha256_bytes(canonical_json(_intent_artifact(first.order_intents)))
         == expected["order_intent_artifact_checksum"]
     )
-    assert sha256_bytes(canonical_json(first.to_serializable())) == expected[
-        "delivery_artifact_checksum"
-    ]
+    assert (
+        sha256_bytes(canonical_json(first.to_serializable()))
+        == expected["delivery_artifact_checksum"]
+    )
     assert first.run_inputs.to_serializable() == {
         "long_lookback_sessions": 252,
         "policy_version": "causal_forward_v1",
@@ -298,9 +296,7 @@ def test_daily_clean_causal_delivery_and_deterministic_artifacts() -> None:
     assert first.decision_book.reveal(next_session) == ()
 
     changed_reader = Reader(changed_after_signal_rows)
-    changed_result = CausalDecisionDelivery(
-        changed_reader, calendar=calendar
-    ).deliver(
+    changed_result = CausalDecisionDelivery(changed_reader, calendar=calendar).deliver(
         snapshot,
         signal,
         portfolio,

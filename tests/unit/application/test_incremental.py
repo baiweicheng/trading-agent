@@ -135,9 +135,7 @@ def _all_records(
                     symbol,
                     session,
                     split_ratio=(
-                        "2"
-                        if symbol == "AAPL" and session == split_session
-                        else "1"
+                        "2" if symbol == "AAPL" and session == split_session else "1"
                     ),
                 )
             )
@@ -164,8 +162,9 @@ def test_plan_uses_nonzero_overlap_and_rejects_shrink_and_back_extension() -> No
         merger.plan(parent, DateRange(sessions[0].replace(day=1), sessions[3]), 2)
 
 
-def test_zero_overlap_starts_at_first_later_session_and_extended_rows_are_added(
-) -> None:
+def test_zero_overlap_starts_at_first_later_session_and_extended_rows_are_added() -> (
+    None
+):
     sessions = tuple(date(2024, 1, day) for day in (2, 3, 4, 5))
     calendar = FixtureCalendar(sessions)
     parent_range = DateRange(sessions[0], sessions[2])
@@ -190,8 +189,9 @@ def test_zero_overlap_starts_at_first_later_session_and_extended_rows_are_added(
     assert result.snapshot_id != parent.snapshot_id
 
 
-def test_unchanged_overlap_reuses_parent_id_but_revision_rebuilds_suffix_from_seed(
-) -> None:
+def test_unchanged_overlap_reuses_parent_id_but_revision_rebuilds_suffix_from_seed() -> (
+    None
+):
     sessions = tuple(date(2024, 1, day) for day in (2, 3, 4))
     calendar = FixtureCalendar(sessions)
     requested_range = DateRange(sessions[0], sessions[-1])
@@ -214,9 +214,7 @@ def test_unchanged_overlap_reuses_parent_id_but_revision_rebuilds_suffix_from_se
         _record(
             symbol,
             session,
-            split_ratio=(
-                "2" if symbol == "AAPL" and session == sessions[1] else "1"
-            ),
+            split_ratio=("2" if symbol == "AAPL" and session == sessions[1] else "1"),
         )
         for symbol in ("AAPL", "MSFT", "SPY")
         for session in sessions[1:]
@@ -242,15 +240,14 @@ def test_unchanged_overlap_reuses_parent_id_but_revision_rebuilds_suffix_from_se
     assert original_aapl.cumulative_price_factor == Decimal("1.000000000000000000")
 
 
-def test_failed_symbol_retains_parent_coverage_and_missing_parent_has_zero_new_content(
-) -> None:
+def test_failed_symbol_retains_parent_coverage_and_missing_parent_has_zero_new_content() -> (
+    None
+):
     sessions = tuple(date(2024, 1, day) for day in (2, 3, 4))
     calendar = FixtureCalendar(sessions)
     requested_range = DateRange(sessions[0], sessions[1])
     parent_records = tuple(
-        record
-        for record in _all_records(sessions[:2])
-        if record.symbol != "MSFT"
+        record for record in _all_records(sessions[:2]) if record.symbol != "MSFT"
     )
     parent = _parent(calendar, parent_records, requested_range)
 
@@ -294,12 +291,16 @@ def test_snapshot_manager_failure_is_returned_as_actionable_error() -> None:
                 ErrorCategory,
             )
 
-            return Err((ActionableError(
-                operation="snapshot.open",
-                category=ErrorCategory.INTEGRITY_CHECKSUM,
-                message="corrupt parent",
-                corrective_action="repair parent",
-            ),))
+            return Err(
+                (
+                    ActionableError(
+                        operation="snapshot.open",
+                        category=ErrorCategory.INTEGRITY_CHECKSUM,
+                        message="corrupt parent",
+                        corrective_action="repair parent",
+                    ),
+                )
+            )
 
     sessions = (date(2024, 1, 2), date(2024, 1, 3))
     calendar = FixtureCalendar(sessions)

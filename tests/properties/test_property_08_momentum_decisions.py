@@ -14,10 +14,10 @@ from hypothesis import strategies as st
 
 from quant_research_platform.domain.canonical import canonical_json
 from quant_research_platform.domain.strategy import (
+    WARM_UP_SESSIONS,
     PriceHistory,
     PriceObservation,
     StrategyExclusionReason,
-    WARM_UP_SESSIONS,
     monthly_momentum_v1,
 )
 
@@ -172,14 +172,13 @@ def momentum_cases(draw: st.DrawFn) -> MomentumCase:
 def _reference_decisions(case: MomentumCase) -> tuple[ReferenceDecision, ...]:
     """Apply the policy's stated sort/slice rules without calling its helpers."""
 
-    by_key = {(observation.symbol, observation.session): observation for observation in case.history}
+    by_key = {
+        (observation.symbol, observation.session): observation
+        for observation in case.history
+    }
     signal_index = len(case.sessions) - 1
-    long_session = (
-        case.sessions[signal_index - 252] if signal_index >= 252 else None
-    )
-    short_session = (
-        case.sessions[signal_index - 21] if signal_index >= 21 else None
-    )
+    long_session = case.sessions[signal_index - 252] if signal_index >= 252 else None
+    short_session = case.sessions[signal_index - 21] if signal_index >= 21 else None
     warmup_complete = signal_index >= WARM_UP_SESSIONS
 
     rows: dict[str, dict[str, object]] = {}
@@ -225,7 +224,10 @@ def _reference_decisions(case: MomentumCase) -> tuple[ReferenceDecision, ...]:
             assert short_observation is not None
             with localcontext() as context:
                 context.prec = 28
-                score = short_observation.adjusted_close / long_observation.adjusted_close - Decimal("1")
+                score = (
+                    short_observation.adjusted_close / long_observation.adjusted_close
+                    - Decimal("1")
+                )
             if not case.tradable[case.universe.index(symbol)]:
                 reason = StrategyExclusionReason.ASSET_NOT_TRADABLE
             else:
@@ -244,9 +246,7 @@ def _reference_decisions(case: MomentumCase) -> tuple[ReferenceDecision, ...]:
 
     eligible_scores.sort(key=lambda item: (-item[1], item[0]))
     ranks = {symbol: rank for rank, (symbol, _) in enumerate(eligible_scores, start=1)}
-    selected_symbols = {
-        symbol for symbol, _ in eligible_scores[: case.position_count]
-    }
+    selected_symbols = {symbol for symbol, _ in eligible_scores[: case.position_count]}
     selected_weight = (
         Fraction(1, len(selected_symbols)) if selected_symbols else Fraction(0, 1)
     )
@@ -274,7 +274,9 @@ def _reference_decisions(case: MomentumCase) -> tuple[ReferenceDecision, ...]:
                 momentum_score=row["momentum_score"],
                 eligible=eligible,
                 rank=rank,
-                target_weight=selected_weight if symbol in selected_symbols else Fraction(0, 1),
+                target_weight=selected_weight
+                if symbol in selected_symbols
+                else Fraction(0, 1),
                 exclusion_reason=reason,
             )
         )
@@ -308,9 +310,9 @@ def test_monthly_momentum_decisions_are_complete_exact_and_deterministic(
     expected = _reference_decisions(case)
 
     assert first == second
-    assert canonical_json([decision.to_serializable() for decision in first]) == canonical_json(
-        [decision.to_serializable() for decision in second]
-    )
+    assert canonical_json(
+        [decision.to_serializable() for decision in first]
+    ) == canonical_json([decision.to_serializable() for decision in second])
     assert len(first) == len(case.universe)
     assert tuple(decision.symbol for decision in first) == case.universe
 

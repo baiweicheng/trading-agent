@@ -100,3 +100,6 @@ zipline-bundles/
 .DS_Store
 .idea/
 .vscode/
+
+# freebuff
+.freebuff/

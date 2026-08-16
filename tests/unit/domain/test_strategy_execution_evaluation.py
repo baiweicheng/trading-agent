@@ -107,7 +107,9 @@ def test_rational_weights_reduce_compare_and_sum_exactly() -> None:
     assert first.to_canonical_string() == "1/2"
     assert RationalWeight.sum(selected) == RationalWeight(1, 1)
     assert RationalWeight.sum(()) == RationalWeight.zero()
-    assert RationalWeight(1, 3).as_decimal() == Decimal("0.3333333333333333333333333333")
+    assert RationalWeight(1, 3).as_decimal() == Decimal(
+        "0.3333333333333333333333333333"
+    )
 
 
 def test_deterministic_order_and_fill_ids_are_scientific_not_operational() -> None:
@@ -131,13 +133,16 @@ def test_deterministic_order_and_fill_ids_are_scientific_not_operational() -> No
     assert order_id.startswith("order_")
     assert _order_id(ordinal=1) != order_id
     assert fill_id.startswith("fill_")
-    assert deterministic_fill_id(
-        order_id=order_id,
-        symbol="aapl",
-        session=EXECUTION_SESSION,
-        quantity=3,
-        ordinal=0,
-    ) == fill_id
+    assert (
+        deterministic_fill_id(
+            order_id=order_id,
+            symbol="aapl",
+            session=EXECUTION_SESSION,
+            quantity=3,
+            ordinal=0,
+        )
+        == fill_id
+    )
 
     order = OrderRecord(
         order_id=order_id,

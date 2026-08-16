@@ -136,9 +136,7 @@ class CashSafeFill:
             raise ValueError("buy fill price must not be below the base open")
         if self.quantity < 0 and self.fill_price > self.base_adjusted_open:
             raise ValueError("sell fill price must not exceed the base open")
-        if self.gross_notional != quantize_money(
-            abs(self.quantity) * self.fill_price
-        ):
+        if self.gross_notional != quantize_money(abs(self.quantity) * self.fill_price):
             raise ValueError("gross_notional must equal the actual fill notional")
         if self.slippage_cost != quantize_money(
             abs(self.fill_price - self.base_adjusted_open) * abs(self.quantity)
@@ -214,7 +212,9 @@ class CashSafeExecutionResult:
             raise TypeError("fills must contain CashSafeFill values")
         if any(not isinstance(item, UnfilledOrder) for item in self.unfilled_orders):
             raise TypeError("unfilled_orders must contain UnfilledOrder values")
-        if any(not isinstance(item, ActionableError) for item in self.actionable_errors):
+        if any(
+            not isinstance(item, ActionableError) for item in self.actionable_errors
+        ):
             raise TypeError("actionable_errors must contain ActionableError values")
         object.__setattr__(self, "cash_balance", cash)
         object.__setattr__(self, "positions", MappingProxyType(normalized))
@@ -412,7 +412,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
         price = _positive_decimal(fill_price, "fill_price")
         with localcontext() as context:
             context.prec = 28
-            return quantize_money(abs(quantity) * price * self.cost_model.commission_rate)
+            return quantize_money(
+                abs(quantity) * price * self.cost_model.commission_rate
+            )
 
     calculate_commission = commission_for
 
@@ -424,7 +426,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
     ) -> int:
         """Return the greatest non-negative buy quantity including commission."""
 
-        if isinstance(requested_quantity, bool) or not isinstance(requested_quantity, int):
+        if isinstance(requested_quantity, bool) or not isinstance(
+            requested_quantity, int
+        ):
             raise TypeError("requested_quantity must be an integer")
         requested = abs(requested_quantity)
         if requested == 0:
@@ -436,7 +440,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
             return 0
         with localcontext() as context:
             context.prec = 40
-            candidate = int((available / denominator).to_integral_value(rounding=ROUND_FLOOR))
+            candidate = int(
+                (available / denominator).to_integral_value(rounding=ROUND_FLOOR)
+            )
         candidate = min(requested, max(0, candidate))
         while candidate and not self._buy_affordable(available, price, candidate):
             candidate -= 1
@@ -453,7 +459,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
     ) -> int:
         """Return the greatest sell quantity preserving non-negative cash."""
 
-        if isinstance(requested_quantity, bool) or not isinstance(requested_quantity, int):
+        if isinstance(requested_quantity, bool) or not isinstance(
+            requested_quantity, int
+        ):
             raise TypeError("requested_quantity must be an integer")
         if isinstance(holdings, bool) or not isinstance(holdings, int) or holdings < 0:
             raise ValueError("holdings must be a non-negative integer")
@@ -470,7 +478,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
             return requested
         with localcontext() as context:
             context.prec = 40
-            candidate = int((available / denominator).to_integral_value(rounding=ROUND_FLOOR))
+            candidate = int(
+                (available / denominator).to_integral_value(rounding=ROUND_FLOOR)
+            )
         candidate = min(requested, max(0, candidate))
         while candidate and not self._sell_affordable(available, price, candidate):
             candidate -= 1
@@ -515,9 +525,7 @@ class CashSafeOpenBlotter(_SimulationBlotter):
 
         if not isinstance(order_id, str) or not order_id.strip():
             raise ValueError("order_id must be a non-empty string")
-        cleaned = {
-            key: value for key, value in metadata.items() if value is not None
-        }
+        cleaned = {key: value for key, value in metadata.items() if value is not None}
         for key in ("decision_rank",):
             value = cleaned.get(key)
             if value is not None and (
@@ -534,7 +542,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
 
     set_order_metadata = register_order_metadata
 
-    def get_transactions(self, bar_data: object) -> tuple[list[object], list[dict[str, object]], list[object]]:
+    def get_transactions(
+        self, bar_data: object
+    ) -> tuple[list[object], list[dict[str, object]], list[object]]:
         """Create cash-safe transactions for the current Zipline session."""
 
         if _SimulationBlotter is object:  # pragma: no cover - no Zipline install.
@@ -582,11 +592,16 @@ class CashSafeOpenBlotter(_SimulationBlotter):
             raise TypeError("ledger must expose process_transaction/process_commission")
         for fill in result.fills:
             if fill.transaction is None:
-                raise ValueError("execution result does not contain Zipline transactions")
+                raise ValueError(
+                    "execution result does not contain Zipline transactions"
+                )
             process_transaction(fill.transaction)
             if fill.commission > 0:
                 process_commission(
-                    {"asset": _order_asset(fill.order_id, self), "cost": float(fill.commission)}
+                    {
+                        "asset": _order_asset(fill.order_id, self),
+                        "cost": float(fill.commission),
+                    }
                 )
 
     @property
@@ -623,7 +638,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
             session,
             cash,
             positions,
-            open_lookup=lambda view: self._lookup_open_from_bar(view, bar_data, session),
+            open_lookup=lambda view: self._lookup_open_from_bar(
+                view, bar_data, session
+            ),
             transaction_dt=current_dt,
             build_transactions=True,
             reject_invalid=True,
@@ -633,7 +650,11 @@ class CashSafeOpenBlotter(_SimulationBlotter):
                 transactions.append(fill.transaction)
                 if fill.commission > 0:
                     order = next(
-                        (view.order for view in views if view.order_id == fill.order_id),
+                        (
+                            view.order
+                            for view in views
+                            if view.order_id == fill.order_id
+                        ),
                         None,
                     )
                     if order is not None:
@@ -763,7 +784,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
                         signed_quantity = -quantity
                         commission = self.commission_for(signed_quantity, fill_price)
                         notional = quantize_money(quantity * fill_price)
-                        cash_after = quantize_money(cash_balance + notional - commission)
+                        cash_after = quantize_money(
+                            cash_balance + notional - commission
+                        )
                     if quantity == 0:
                         self._unfilled(
                             view,
@@ -801,7 +824,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
                         quantity -= 1
                         commission = self.commission_for(quantity, fill_price)
                         notional = quantize_money(quantity * fill_price)
-                        cash_after = quantize_money(cash_balance - notional - commission)
+                        cash_after = quantize_money(
+                            cash_balance - notional - commission
+                        )
                     if quantity == 0:
                         self._unfilled(
                             view,
@@ -842,9 +867,13 @@ class CashSafeOpenBlotter(_SimulationBlotter):
             )
             fills.append(fill)
             commissions.append(
-                CommissionCharge(view.order_id, view.symbol, signed_quantity, commission)
+                CommissionCharge(
+                    view.order_id, view.symbol, signed_quantity, commission
+                )
             )
-            _increase_order_filled(view.order, signed_quantity, commission, transaction_dt)
+            _increase_order_filled(
+                view.order, signed_quantity, commission, transaction_dt
+            )
             remaining = remaining - signed_quantity
             remaining_state[view.order_id] = remaining
             remainder = remaining
@@ -923,7 +952,11 @@ class CashSafeOpenBlotter(_SimulationBlotter):
             symbol = _symbol(asset or order)
             quantity = _remaining_quantity(order)
             rank_value = _field(order, "decision_rank", metadata.get("decision_rank"))
-            rank = None if rank_value is None else _positive_int(rank_value, "decision_rank")
+            rank = (
+                None
+                if rank_value is None
+                else _positive_int(rank_value, "decision_rank")
+            )
             execution = _date_field(
                 _field(order, "execution_session", metadata.get("execution_session"))
             )
@@ -931,7 +964,9 @@ class CashSafeOpenBlotter(_SimulationBlotter):
                 _field(order, "signal_session", metadata.get("signal_session"))
             )
             views.append(
-                _OrderView(order, order_id, asset, symbol, quantity, rank, execution, signal)
+                _OrderView(
+                    order, order_id, asset, symbol, quantity, rank, execution, signal
+                )
             )
         return tuple(views)
 
@@ -1003,13 +1038,19 @@ class CashSafeOpenBlotter(_SimulationBlotter):
                 return _price_from_value(found)
         provider = self._open_price_provider
         if provider is not None:
-            return _call_price_provider(provider, view.asset, view.symbol, view.order_id, None)
+            return _call_price_provider(
+                provider, view.asset, view.symbol, view.order_id, None
+            )
         return None
 
-    def _lookup_open_from_bar(self, view: _OrderView, bar_data: object, session: date) -> object:
+    def _lookup_open_from_bar(
+        self, view: _OrderView, bar_data: object, session: date
+    ) -> object:
         provider = self._open_price_provider
         if provider is not None:
-            value = _call_price_provider(provider, view.asset, view.symbol, view.order_id, session)
+            value = _call_price_provider(
+                provider, view.asset, view.symbol, view.order_id, session
+            )
             if value is not None:
                 return _price_from_value(value)
         return _bar_open(bar_data, view.asset, view.symbol)
@@ -1026,19 +1067,31 @@ class CashSafeOpenBlotter(_SimulationBlotter):
         if transaction_dt is None:
             transaction_dt = datetime.combine(date.today(), time.min, tzinfo=UTC)
         try:
-            return _create_transaction(order, transaction_dt, float(fill_price), quantity)
+            return _create_transaction(
+                order, transaction_dt, float(fill_price), quantity
+            )
         except (TypeError, ValueError, AttributeError):
             return None
 
     def _buy_affordable(self, cash: Decimal, price: Decimal, quantity: int) -> bool:
-        return quantize_money(
-            cash - quantize_money(quantity * price) - self.commission_for(quantity, price)
-        ) >= 0
+        return (
+            quantize_money(
+                cash
+                - quantize_money(quantity * price)
+                - self.commission_for(quantity, price)
+            )
+            >= 0
+        )
 
     def _sell_affordable(self, cash: Decimal, price: Decimal, quantity: int) -> bool:
-        return quantize_money(
-            cash + quantize_money(quantity * price) - self.commission_for(-quantity, price)
-        ) >= 0
+        return (
+            quantize_money(
+                cash
+                + quantize_money(quantity * price)
+                - self.commission_for(-quantity, price)
+            )
+            >= 0
+        )
 
 
 # ----------------------------------------------------------------------
@@ -1081,13 +1134,18 @@ def _normalize_positions(values: Mapping[object, object]) -> dict[str, int]:
         if quantity_value is None:
             quantity_value = _field(value, "quantity")
         if isinstance(quantity_value, bool) or not isinstance(quantity_value, int):
-            if isinstance(quantity_value, Decimal) and quantity_value == quantity_value.to_integral_value():
+            if (
+                isinstance(quantity_value, Decimal)
+                and quantity_value == quantity_value.to_integral_value()
+            ):
                 quantity_value = int(quantity_value)
             else:
                 try:
                     quantity_value = int(quantity_value)
                 except (TypeError, ValueError) as error:
-                    raise TypeError("positions must contain whole-share quantities") from error
+                    raise TypeError(
+                        "positions must contain whole-share quantities"
+                    ) from error
         if quantity_value < 0:
             raise ValueError("positions must be long-only and non-negative")
         if quantity_value:
@@ -1173,7 +1231,11 @@ def _increase_order_filled(
             pass
     if hasattr(order, "commission"):
         try:
-            setattr(order, "commission", float(getattr(order, "commission", 0)) + float(commission))
+            setattr(
+                order,
+                "commission",
+                float(getattr(order, "commission", 0)) + float(commission),
+            )
         except (AttributeError, TypeError):
             pass
     if transaction_dt is not None and hasattr(order, "dt"):
@@ -1256,9 +1318,7 @@ def _mapping_lookup(
         except (AttributeError, TypeError):
             nested = _MISSING
         if isinstance(nested, Mapping):
-            return _mapping_lookup(
-                nested, asset, symbol, order_id, session=None
-            )
+            return _mapping_lookup(nested, asset, symbol, order_id, session=None)
     return _MISSING
 
 
@@ -1308,7 +1368,14 @@ def _bar_open(bar_data: object, asset: object | None, symbol: str) -> object:
                 # snapshot's raw-bars-plus-actions bundle.
                 _positive_decimal(candidate, field)
                 return candidate
-            except (KeyError, AttributeError, TypeError, ValueError, IndexError, InvalidOperation):
+            except (
+                KeyError,
+                AttributeError,
+                TypeError,
+                ValueError,
+                IndexError,
+                InvalidOperation,
+            ):
                 continue
     for key in ("adjusted_open", "execution_adjusted_open", "open"):
         candidate = _field(bar_data, key, _MISSING)
@@ -1380,16 +1447,22 @@ class _EngineCalendar:
 
                 return self._date(method(pd.Timestamp(value)))
             except Exception as error:
-                raise ValueError("calendar could not determine the next session") from error
+                raise ValueError(
+                    "calendar could not determine the next session"
+                ) from error
 
     def month_end_sessions(self, start: date, end: date) -> tuple[date, ...]:
         method = getattr(self._calendar, "month_end_sessions", None)
         if callable(method):
             try:
-                return tuple(sorted({self._date(value) for value in method(start, end)}))
+                return tuple(
+                    sorted({self._date(value) for value in method(start, end)})
+                )
             except (TypeError, ValueError, AttributeError):
                 pass
-        sessions = self.sessions(start, end, completed_at=datetime.max.replace(tzinfo=UTC))
+        sessions = self.sessions(
+            start, end, completed_at=datetime.max.replace(tzinfo=UTC)
+        )
         month_ends: dict[tuple[int, int], date] = {}
         for session in sessions:
             month_ends[(session.year, session.month)] = session
@@ -1404,9 +1477,8 @@ class _EngineCalendar:
                 return tuple(
                     value
                     for value in (
-                        self._date(item) for item in method(
-                            start, end, completed_at=completed_at
-                        )
+                        self._date(item)
+                        for item in method(start, end, completed_at=completed_at)
                     )
                     if value <= completed_at.date()
                 )
@@ -1512,7 +1584,9 @@ class BacktestEngine:
                         field_path="evaluation_range",
                     )
                 )
-            signal_sessions = frozenset(decision_calendar.month_end_sessions(start, end))
+            signal_sessions = frozenset(
+                decision_calendar.month_end_sessions(start, end)
+            )
             delivery = self._decision_service(config, decision_calendar)
             submitted: dict[str, object] = {}
             decisions: list[StrategyDecision] = []
@@ -1535,7 +1609,9 @@ class BacktestEngine:
                 session = _session_from_value(getattr(context, "datetime", None))
                 if session is None:
                     getter = getattr(context, "get_datetime", None)
-                    session = _session_from_value(getter()) if callable(getter) else None
+                    session = (
+                        _session_from_value(getter()) if callable(getter) else None
+                    )
                 if session is None:
                     raise _EngineFailure(
                         self._error(
@@ -1602,7 +1678,9 @@ class BacktestEngine:
         except (TypeError, ValueError, ArithmeticError) as error:
             return Err((self._input_error(error),))
         except Exception as error:
-            return Err((ActionableError.from_unexpected_exception(self.operation_name, error),))
+            return Err(
+                (ActionableError.from_unexpected_exception(self.operation_name, error),)
+            )
         finally:
             if registered_name is not None:
                 self._unregister_bundle(registered_name)
@@ -1614,7 +1692,14 @@ class BacktestEngine:
         if isinstance(bundle, ZiplineBundleLocator):
             locator = bundle
         else:
-            required = ("bundle_name", "bundle_timestamp", "zipline_root", "snapshot_id", "adapter_version", "bundle_checksum")
+            required = (
+                "bundle_name",
+                "bundle_timestamp",
+                "zipline_root",
+                "snapshot_id",
+                "adapter_version",
+                "bundle_checksum",
+            )
             if any(not hasattr(bundle, field) for field in required):
                 raise _EngineFailure(
                     self._error(
@@ -1657,7 +1742,10 @@ class BacktestEngine:
                 import json
 
                 manifest = json.loads(manifest_path.read_bytes())
-                if manifest.get("snapshot_id") != locator.snapshot_id or manifest.get("bundle_checksum") != locator.bundle_checksum:
+                if (
+                    manifest.get("snapshot_id") != locator.snapshot_id
+                    or manifest.get("bundle_checksum") != locator.bundle_checksum
+                ):
                     raise ValueError("bundle manifest identity mismatch")
             except Exception as error:
                 raise _EngineFailure(
@@ -1711,7 +1799,9 @@ class BacktestEngine:
             )
         return snapshot
 
-    def _request_range(self, request: object | None, config: ResolvedConfig) -> tuple[date, date]:
+    def _request_range(
+        self, request: object | None, config: ResolvedConfig
+    ) -> tuple[date, date]:
         source = request
         candidate = None
         if source is not None:
@@ -1719,12 +1809,22 @@ class BacktestEngine:
             if candidate is None:
                 candidate = getattr(source, "requested_range", None)
         if candidate is not None:
-            start = _date_attr(candidate, ("start", "evaluation_start", "requested_start"))
+            start = _date_attr(
+                candidate, ("start", "evaluation_start", "requested_start")
+            )
             end = _date_attr(candidate, ("end", "evaluation_end", "requested_end"))
             if start is not None and end is not None:
                 return start, end
-        start = _date_attr(source, ("evaluation_start", "start", "requested_start")) if source is not None else None
-        end = _date_attr(source, ("evaluation_end", "end", "requested_end")) if source is not None else None
+        start = (
+            _date_attr(source, ("evaluation_start", "start", "requested_start"))
+            if source is not None
+            else None
+        )
+        end = (
+            _date_attr(source, ("evaluation_end", "end", "requested_end"))
+            if source is not None
+            else None
+        )
         if start is not None and end is not None:
             return start, end
         requested = config.data.requested_range
@@ -1738,7 +1838,9 @@ class BacktestEngine:
         end: date,
         snapshot: object,
     ) -> None:
-        requested_id = getattr(request, "snapshot_id", None) if request is not None else None
+        requested_id = (
+            getattr(request, "snapshot_id", None) if request is not None else None
+        )
         if requested_id is not None and requested_id != locator.snapshot_id:
             raise _EngineFailure(
                 self._error(
@@ -1757,7 +1859,9 @@ class BacktestEngine:
                 manifest = getattr(inspected, "manifest", inspected)
         identity = getattr(manifest, "content_identity", None)
         requested_range = getattr(identity, "requested_range", None)
-        if requested_range is not None and (start < requested_range.start or end > requested_range.end):
+        if requested_range is not None and (
+            start < requested_range.start or end > requested_range.end
+        ):
             raise _EngineFailure(
                 self._error(
                     ErrorCategory.SNAPSHOT_NOT_READY,
@@ -1850,14 +1954,20 @@ class BacktestEngine:
         return calendar
 
     @staticmethod
-    def _simulation_sessions(calendar: object, start: date, end: date) -> tuple[date, ...]:
+    def _simulation_sessions(
+        calendar: object, start: date, end: date
+    ) -> tuple[date, ...]:
         method = getattr(calendar, "sessions_in_range", None)
         if not callable(method):
             return ()
         try:
             import pandas as pd  # type: ignore[import-untyped]
 
-            return tuple(_session_from_value(value) for value in method(pd.Timestamp(start), pd.Timestamp(end)) if _session_from_value(value) is not None)
+            return tuple(
+                _session_from_value(value)
+                for value in method(pd.Timestamp(start), pd.Timestamp(end))
+                if _session_from_value(value) is not None
+            )
         except Exception as error:
             raise _EngineFailure(
                 BacktestEngine._static_error(
@@ -1868,7 +1978,9 @@ class BacktestEngine:
                 )
             ) from error
 
-    def _decision_service(self, config: ResolvedConfig, calendar: _EngineCalendar) -> object:
+    def _decision_service(
+        self, config: ResolvedConfig, calendar: _EngineCalendar
+    ) -> object:
         if self.decision_delivery is not None:
             return self.decision_delivery
         # The run has already opened and pinned the snapshot before entering
@@ -1954,7 +2066,10 @@ class BacktestEngine:
             order_method = getattr(context, "order", None)
             if not callable(order_method):
                 return None
-            return cast(str | None, order_method(asset, intent.requested_quantity, style=_MarketOrder()))
+            return cast(
+                str | None,
+                order_method(asset, intent.requested_quantity, style=_MarketOrder()),
+            )
         except Exception as error:
             raise _EngineFailure(
                 BacktestEngine._static_error(
@@ -1974,7 +2089,9 @@ class BacktestEngine:
         return INITIAL_PORTFOLIO_EQUITY if value is None else value
 
     @staticmethod
-    def _runtime_positions(runtime: Mapping[str, object | None]) -> Mapping[object, object]:
+    def _runtime_positions(
+        runtime: Mapping[str, object | None],
+    ) -> Mapping[object, object]:
         algorithm = runtime.get("algorithm")
         portfolio = getattr(algorithm, "portfolio", None)
         value = getattr(portfolio, "positions", None)
@@ -2103,7 +2220,11 @@ class BacktestEngine:
             states.append(state)
             raw_return = _row_value(row, "returns", None)
             if raw_return is None or not _finite_number(raw_return):
-                value = Decimal("0") if previous_equity is None else state.portfolio_equity / previous_equity - Decimal("1")
+                value = (
+                    Decimal("0")
+                    if previous_equity is None
+                    else state.portfolio_equity / previous_equity - Decimal("1")
+                )
             else:
                 value = _decimal_number(raw_return, "returns")
             if value <= Decimal("-1"):
@@ -2191,9 +2312,18 @@ class BacktestEngine:
                     unfilled_reason=reason,
                 )
             )
-        orders.sort(key=lambda item: (item.signal_session, item.execution_session, item.ordinal, item.symbol))
+        orders.sort(
+            key=lambda item: (
+                item.signal_session,
+                item.execution_session,
+                item.ordinal,
+                item.symbol,
+            )
+        )
         fills.sort(key=lambda item: (item.session, item.order_id, item.ordinal))
-        decisions_sorted = tuple(sorted(decisions, key=lambda item: (item.signal_session, item.symbol)))
+        decisions_sorted = tuple(
+            sorted(decisions, key=lambda item: (item.signal_session, item.symbol))
+        )
         try:
             return CoreBacktestOutput(
                 orders=tuple(orders),
@@ -2218,7 +2348,9 @@ class BacktestEngine:
         iterrows = getattr(performance, "iterrows", None)
         if callable(iterrows):
             for index, row in iterrows():
-                session = _session_from_value(index) or _session_from_value(_row_value(row, "period_close", None))
+                session = _session_from_value(index) or _session_from_value(
+                    _row_value(row, "period_close", None)
+                )
                 if session is not None:
                     yield session, row
             return
@@ -2229,8 +2361,15 @@ class BacktestEngine:
                     yield session, value
 
     @classmethod
-    def _portfolio_state(cls, session: date, row: object, asset_finder: object) -> PortfolioState:
-        cash = _decimal_number(_row_value(row, "ending_cash", _row_value(row, "cash", INITIAL_PORTFOLIO_EQUITY)), "ending_cash")
+    def _portfolio_state(
+        cls, session: date, row: object, asset_finder: object
+    ) -> PortfolioState:
+        cash = _decimal_number(
+            _row_value(
+                row, "ending_cash", _row_value(row, "cash", INITIAL_PORTFOLIO_EQUITY)
+            ),
+            "ending_cash",
+        )
         if cash < 0 and cash > Decimal("-0.000001"):
             cash = Decimal("0")
         if cash < 0:
@@ -2245,7 +2384,10 @@ class BacktestEngine:
             )
         positions: list[Position] = []
         for entry in _position_entries(_row_value(row, "positions", ())):
-            amount = _integer_number(_row_value(entry, "amount", _row_value(entry, "quantity", 0)), "position.amount")
+            amount = _integer_number(
+                _row_value(entry, "amount", _row_value(entry, "quantity", 0)),
+                "position.amount",
+            )
             if amount == 0:
                 continue
             if amount < 0:
@@ -2265,11 +2407,19 @@ class BacktestEngine:
                     asset = asset_finder.retrieve_asset(int(sid))
                 except Exception:
                     asset = None
-            symbol = _symbol(asset) if asset is not None else str(_row_value(entry, "symbol", sid)).strip().upper()
-            price_value = _row_value(entry, "last_sale_price", _row_value(entry, "price", None))
+            symbol = (
+                _symbol(asset)
+                if asset is not None
+                else str(_row_value(entry, "symbol", sid)).strip().upper()
+            )
+            price_value = _row_value(
+                entry, "last_sale_price", _row_value(entry, "price", None)
+            )
             if price_value is None:
                 value = _row_value(entry, "value", None)
-                price_value = Decimal(str(value)) / Decimal(amount) if value is not None else None
+                price_value = (
+                    Decimal(str(value)) / Decimal(amount) if value is not None else None
+                )
             if price_value is None:
                 raise _EngineFailure(
                     cls._static_error(
@@ -2283,13 +2433,21 @@ class BacktestEngine:
                 )
             price = quantize_money(_decimal_number(price_value, "position.mark_price"))
             value = quantize_money(Decimal(amount) * price)
-            positions.append(Position(symbol=symbol, quantity=amount, mark_price=price, market_value=value))
+            positions.append(
+                Position(
+                    symbol=symbol, quantity=amount, mark_price=price, market_value=value
+                )
+            )
         positions.sort(key=lambda item: item.symbol)
-        gross = quantize_money(sum((item.market_value for item in positions), Decimal("0")))
+        gross = quantize_money(
+            sum((item.market_value for item in positions), Decimal("0"))
+        )
         equity = quantize_money(cash + gross)
         reported = _row_value(row, "portfolio_value", None)
         if reported is not None and _finite_number(reported):
-            if abs(_decimal_number(reported, "portfolio_value") - equity) > Decimal("0.010001"):
+            if abs(_decimal_number(reported, "portfolio_value") - equity) > Decimal(
+                "0.010001"
+            ):
                 raise _EngineFailure(
                     cls._static_error(
                         ErrorCategory.BACKTEST_INVARIANT,
@@ -2348,7 +2506,9 @@ class BacktestEngine:
             stage=JobStage.EXECUTING,
             completed_units=min(len(sessions), sessions.index(session) + 1),
             total_units=total,
-            elapsed_seconds=Decimal(str(max(0.0, _time.monotonic() - self._progress_started))),
+            elapsed_seconds=Decimal(
+                str(max(0.0, _time.monotonic() - self._progress_started))
+            ),
         )
         try:
             callback(update)
@@ -2382,8 +2542,16 @@ class BacktestEngine:
             checksum=checksum,
         )
 
-    def _error(self, category: ErrorCategory, message: str, corrective_action: str, **kwargs: object) -> ActionableError:
-        return self._static_error(category, message, corrective_action, **cast(dict[str, object], kwargs))
+    def _error(
+        self,
+        category: ErrorCategory,
+        message: str,
+        corrective_action: str,
+        **kwargs: object,
+    ) -> ActionableError:
+        return self._static_error(
+            category, message, corrective_action, **cast(dict[str, object], kwargs)
+        )
 
     @staticmethod
     def _input_error(error: BaseException) -> ActionableError:
@@ -2425,7 +2593,9 @@ def _position_entries(value: object) -> tuple[object, ...]:
     if value is None:
         return ()
     if isinstance(value, Mapping):
-        if any(key in value for key in ("sid", "asset", "symbol", "amount", "quantity")):
+        if any(
+            key in value for key in ("sid", "asset", "symbol", "amount", "quantity")
+        ):
             return (value,)
         return tuple(value.values())
     if isinstance(value, (str, bytes, bytearray)):

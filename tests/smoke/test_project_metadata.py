@@ -12,7 +12,6 @@ import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROJECT_FILE = PROJECT_ROOT / "pyproject.toml"
 LOCK_FILE = PROJECT_ROOT / "uv.lock"
@@ -90,8 +89,7 @@ def test_project_metadata_declares_only_approved_direct_packages() -> None:
     project = metadata["project"]
     runtime = {_package_name(value) for value in project["dependencies"]}
     development = {
-        _package_name(value)
-        for value in metadata["dependency-groups"]["dev"]
+        _package_name(value) for value in metadata["dependency-groups"]["dev"]
     }
 
     assert runtime == EXPECTED_RUNTIME

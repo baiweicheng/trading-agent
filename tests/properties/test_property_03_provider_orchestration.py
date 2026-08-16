@@ -6,10 +6,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from quant_research_platform.application.ports import (
     MarketDataProvider,
@@ -63,7 +64,7 @@ _SYMBOLS: Final = (
 )
 
 
-class AttemptState(str, Enum):
+class AttemptState(StrEnum):
     """One local fake-provider response for one symbol attempt."""
 
     SUCCESS = "success"
@@ -137,7 +138,9 @@ class ScriptedProvider:
             attempt_index = self.attempt_count_by_symbol[symbol]
             states = self._attempt_states[symbol]
             if attempt_index >= len(states):
-                raise AssertionError(f"provider was called beyond scripted attempts for {symbol}")
+                raise AssertionError(
+                    f"provider was called beyond scripted attempts for {symbol}"
+                )
             self.attempt_count_by_symbol[symbol] = attempt_index + 1
             state = states[attempt_index]
             if state is AttemptState.SUCCESS:
@@ -286,11 +289,7 @@ def _reference_result(case: ProviderCase) -> ReferenceResult:
 
             for symbol in pending_symbols:
                 state = case.attempt_states[symbol][attempt_number - 1]
-                if state is AttemptState.SUCCESS or state is AttemptState.TERMINAL:
-                    final_by_symbol[symbol] = _reference_outcome(
-                        symbol, state, attempt_number
-                    )
-                elif attempt_number == case.policy.attempts:
+                if state is AttemptState.SUCCESS or state is AttemptState.TERMINAL or attempt_number == case.policy.attempts:
                     final_by_symbol[symbol] = _reference_outcome(
                         symbol, state, attempt_number
                     )
@@ -388,7 +387,9 @@ def provider_cases(draw: st.DrawFn) -> ProviderCase:
 # Validates: Requirements 3.1, 3.4–3.11, 3.15–3.18, 14.9, 15.1, 17.16–17.17.
 @settings(max_examples=100, deadline=None)
 @given(case=provider_cases())
-def test_bounded_provider_batching_retry_and_symbol_isolation(case: ProviderCase) -> None:
+def test_bounded_provider_batching_retry_and_symbol_isolation(
+    case: ProviderCase,
+) -> None:
     """The local orchestration matches batching and retry reference semantics."""
 
     expected = _reference_result(case)
@@ -406,7 +407,9 @@ def test_bounded_provider_batching_retry_and_symbol_isolation(case: ProviderCase
         sleep=clock.sleep,
     )
 
-    assert tuple(result.request.symbols for result in actual) == expected.logical_batches
+    assert (
+        tuple(result.request.symbols for result in actual) == expected.logical_batches
+    )
     assert tuple(request.symbols for request in provider.requests) == (
         expected.attempt_requests
     )
@@ -414,9 +417,7 @@ def test_bounded_provider_batching_retry_and_symbol_isolation(case: ProviderCase
     assert all(1 <= len(request.symbols) <= 10 for request in provider.requests)
     assert all(len(batch) <= 10 for batch in expected.logical_batches)
 
-    actual_outcomes = tuple(
-        outcome for result in actual for outcome in result.outcomes
-    )
+    actual_outcomes = tuple(outcome for result in actual for outcome in result.outcomes)
     assert tuple(_outcome_signature(outcome) for outcome in actual_outcomes) == (
         expected.final_outcomes
     )

@@ -494,9 +494,7 @@ def _render_result(
 
     diagnostics = _actionable_errors(
         _field(result, "diagnostics")
-    ) + _actionable_errors(
-        _field(_field(result, "audit"), "unfilled_diagnostics")
-    )
+    ) + _actionable_errors(_field(_field(result, "audit"), "unfilled_diagnostics"))
     if diagnostics:
         _call(ui, "subheader", "Unfilled orders and diagnostics")
         render_actionable_errors(diagnostics, st_module=ui, redactor=redactor)

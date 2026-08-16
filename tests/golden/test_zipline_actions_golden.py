@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, date, datetime, timedelta
-from decimal import Decimal, ROUND_FLOOR
+from decimal import ROUND_FLOOR, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -144,9 +144,7 @@ def _snapshot(
     case: dict[str, Any], fixture: dict[str, Any]
 ) -> tuple[SnapshotManifest, list[dict[str, object]]]:
     rows = _fixture_rows(case)
-    sessions = tuple(
-        date.fromisoformat(item["session"]) for item in case["sessions"]
-    )
+    sessions = tuple(date.fromisoformat(item["session"]) for item in case["sessions"])
     requested_range = DateRange(min(sessions), max(sessions))
     object_ref = ContentAddressedObjectRef(
         object_kind=ObjectKind.NORMALIZED,
@@ -196,7 +194,9 @@ def _ledger_reference(
     case: dict[str, Any], rows: list[dict[str, object]]
 ) -> dict[str, Decimal | int]:
     ledger = case["ledger"]
-    by_session = {row["session"]: row for row in rows if row["symbol"] == case["symbol"]}
+    by_session = {
+        row["session"]: row for row in rows if row["symbol"] == case["symbol"]
+    }
     shares = _decimal(ledger["starting_shares"])
     cash = _decimal(ledger["starting_cash"])
     split_row = by_session[date.fromisoformat(ledger["split_session"])]
@@ -219,9 +219,7 @@ def _ledger_reference(
     split_value_before = before_split_shares * pre_action_close
     split_value_after = shares * _decimal(split_row["raw_close"]) + cash_in_lieu
 
-    dividend_row = by_session[
-        date.fromisoformat(ledger["dividend_session"])
-    ]
+    dividend_row = by_session[date.fromisoformat(ledger["dividend_session"])]
     dividend = _decimal(
         next(
             item["action"]["dividend"]
@@ -250,8 +248,7 @@ def _platform_actions(case: dict[str, Any]) -> tuple[dict[str, str], ...]:
             "dividend": item["action"]["dividend"],
         }
         for item in case["sessions"]
-        if item["action"]["split_ratio"] != "1"
-        or item["action"]["dividend"] != "0"
+        if item["action"]["split_ratio"] != "1" or item["action"]["dividend"] != "0"
     )
 
 
@@ -328,13 +325,15 @@ def test_split_dividend_golden_bundle_applies_canonical_actions_once(
             }
             for row in derived_dividends
         )
-        assert tuple(sorted(platform_actions, key=lambda item: item["session"])) == tuple(
-            sorted(derived_action_keys, key=lambda item: item["session"])
-        )
+        assert tuple(
+            sorted(platform_actions, key=lambda item: item["session"])
+        ) == tuple(sorted(derived_action_keys, key=lambda item: item["session"]))
 
         expected_ledger = case["ledger"]
         actual_ledger = _ledger_reference(case, rows)
-        assert actual_ledger["actual_shares"] == expected_ledger["expected_actual_shares"]
+        assert (
+            actual_ledger["actual_shares"] == expected_ledger["expected_actual_shares"]
+        )
         assert actual_ledger["cash_in_lieu"] == _decimal(
             expected_ledger["expected_cash_in_lieu"]
         )

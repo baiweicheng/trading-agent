@@ -401,7 +401,9 @@ def _execute(
     case: StableRerunCase,
     *,
     clock_base: datetime,
-) -> tuple[object, FixtureTracker, FixtureBundleAdapter, FixtureSnapshotManager, FixtureEngine]:
+) -> tuple[
+    object, FixtureTracker, FixtureBundleAdapter, FixtureSnapshotManager, FixtureEngine
+]:
     config = _resolved_config(case)
     snapshot_manager = FixtureSnapshotManager(_snapshot(case))
     bundle_adapter = FixtureBundleAdapter(case)
@@ -467,13 +469,25 @@ def test_stable_reruns_preserve_scientific_outputs_and_checksums(
     assert _scientific_projection(first, first_record) == _scientific_projection(
         second, second_record
     )
-    assert first.core_output.to_scientific_dict() == second.core_output.to_scientific_dict()
-    assert first.evaluation.evaluation_result.to_serializable() == second.evaluation.evaluation_result.to_serializable()
-    assert dict(first.evaluation.artifact_checksums) == dict(second.evaluation.artifact_checksums)
+    assert (
+        first.core_output.to_scientific_dict()
+        == second.core_output.to_scientific_dict()
+    )
+    assert (
+        first.evaluation.evaluation_result.to_serializable()
+        == second.evaluation.evaluation_result.to_serializable()
+    )
+    assert dict(first.evaluation.artifact_checksums) == dict(
+        second.evaluation.artifact_checksums
+    )
     assert {
-        role: artifact.payload for role, artifact in ((item.role, item) for item in first.evaluation.artifacts)
+        role: artifact.payload
+        for role, artifact in ((item.role, item) for item in first.evaluation.artifacts)
     } == {
-        role: artifact.payload for role, artifact in ((item.role, item) for item in second.evaluation.artifacts)
+        role: artifact.payload
+        for role, artifact in (
+            (item.role, item) for item in second.evaluation.artifacts
+        )
     }
     assert first_bundle.locator == second_bundle.locator
     assert first_snapshots.opened_ids == [case.snapshot_id]
@@ -484,7 +498,10 @@ def test_stable_reruns_preserve_scientific_outputs_and_checksums(
     if case.mutation == "strategy_equity":
         changed = replace(
             case,
-            strategy_equity=(*case.strategy_equity[:-1], case.strategy_equity[-1] + Decimal("1")),
+            strategy_equity=(
+                *case.strategy_equity[:-1],
+                case.strategy_equity[-1] + Decimal("1"),
+            ),
         )
     else:
         changed = replace(

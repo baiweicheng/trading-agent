@@ -28,7 +28,9 @@ from ..config.serializer import REDACTION_MARKER, Redactor
 from ..domain.canonical import canonical_json_text
 from ..domain.execution import JobStage
 
-_ALLOWED_LEVELS: Final[frozenset[str]] = frozenset({"debug", "info", "warning", "error"})
+_ALLOWED_LEVELS: Final[frozenset[str]] = frozenset(
+    {"debug", "info", "warning", "error"}
+)
 
 
 def _required_text(name: str, value: str) -> str:
@@ -55,7 +57,9 @@ def _utc_timestamp(value: datetime) -> datetime:
 def _json_safe(value: object) -> object:
     """Return an allowlisted canonical-JSON value without falling back to ``repr``."""
 
-    if value is None or isinstance(value, (bool, int, float, str, Decimal, date, datetime)):
+    if value is None or isinstance(
+        value, (bool, int, float, str, Decimal, date, datetime)
+    ):
         return value
     if isinstance(value, UUID | Path):
         return str(value)
@@ -163,13 +167,13 @@ class StructuredJsonlLogger:
         normalized_correlation = self._redactor.redact_text(
             _required_text("correlation_id", correlation_id)
         )
-        normalized_message = self._redactor.redact_text(_required_text("message", message))
+        normalized_message = self._redactor.redact_text(
+            _required_text("message", message)
+        )
         normalized_run_id = self._sanitize_optional("run_id", run_id)
         normalized_category = self._sanitize_optional("category", category)
         normalized_stage = (
-            None
-            if stage is None
-            else self._redactor.redact_text(JobStage(stage).value)
+            None if stage is None else self._redactor.redact_text(JobStage(stage).value)
         )
         normalized_job_id = str(job_id) if job_id is not None else None
         if job_id is not None and not isinstance(job_id, UUID):
@@ -183,7 +187,9 @@ class StructuredJsonlLogger:
             exception_type = self._redactor.redact_text(type(exception).__name__)
             raw_context["exception_message"] = str(exception)
             raw_context["traceback"] = "".join(
-                traceback.format_exception(type(exception), exception, exception.__traceback__)
+                traceback.format_exception(
+                    type(exception), exception, exception.__traceback__
+                )
             )
         sanitized_context = self._redactor.redact_structured(raw_context)
         if not isinstance(sanitized_context, Mapping):
@@ -217,8 +223,9 @@ class StructuredJsonlLogger:
 
     def _append(self, encoded: str) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        with self._lock:
-            with self._path.open("a", encoding="utf-8", newline="\n") as stream:
+        with self._lock, self._path.open(
+            "a", encoding="utf-8", newline="\n"
+        ) as stream:
                 stream.write(encoded)
                 stream.flush()
                 os.fsync(stream.fileno())

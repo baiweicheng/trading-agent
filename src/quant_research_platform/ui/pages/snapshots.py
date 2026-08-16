@@ -103,8 +103,7 @@ def _error(
         category=ErrorCategory.INTERNAL_UNEXPECTED,
         message=message,
         corrective_action=(
-            "Retry the view; if the problem persists, inspect the local "
-            "diagnostic log."
+            "Retry the view; if the problem persists, inspect the local diagnostic log."
         ),
     )
 
@@ -354,9 +353,7 @@ def _render_detail(
             "complete bytes are available only through an explicit verified "
             "download.",
         )
-        descriptors = {
-            str(item["checksum"]): item for item in refs
-        }
+        descriptors = {str(item["checksum"]): item for item in refs}
         if isinstance(validation_checksum, str) and validation_checksum:
             descriptors.setdefault(
                 validation_checksum,

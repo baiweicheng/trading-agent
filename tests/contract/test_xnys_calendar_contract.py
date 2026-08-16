@@ -44,12 +44,14 @@ def test_xnys_schedule_version_and_digest_match_reviewed_fixture() -> None:
     assert calendar.version == installed_package_version(golden["package_distribution"])
 
     expected_digest = sha256_canonical_json(schedule["rows"])
-    assert calendar.schedule_checksum(
-        _date(schedule["start"]), _date(schedule["end"])
-    ) == expected_digest
-    assert calendar.schedule_checksum(
-        _date(schedule["start"]), _date(schedule["end"])
-    ) == expected_digest
+    assert (
+        calendar.schedule_checksum(_date(schedule["start"]), _date(schedule["end"]))
+        == expected_digest
+    )
+    assert (
+        calendar.schedule_checksum(_date(schedule["start"]), _date(schedule["end"]))
+        == expected_digest
+    )
 
     for row in schedule["rows"]:
         assert calendar.close_timestamp(_date(row["session"])) == _utc(row["close_utc"])

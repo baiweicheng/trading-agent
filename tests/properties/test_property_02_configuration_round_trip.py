@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import date
-from decimal import Decimal
 from pathlib import Path
 from string import ascii_letters, ascii_uppercase, digits
 from typing import Any
 from urllib.parse import quote, quote_plus
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from pydantic import BaseModel, SecretStr
 from ruamel.yaml import YAML
 
@@ -48,9 +48,7 @@ def _proxy_secrets(draw: st.DrawFn) -> tuple[str, str]:
     username = draw(component)
     password = draw(component)
     token = draw(component)
-    http_proxy = (
-        f"http://{username}:{password} secret@proxy.invalid/?token={token}/a b"
-    )
+    http_proxy = f"http://{username}:{password} secret@proxy.invalid/?token={token}/a b"
 
     username = draw(component)
     password = draw(component)
@@ -108,12 +106,12 @@ def _valid_resolved_configurations(draw: st.DrawFn) -> ResolvedConfig:
                 "revision_overlap_sessions": draw(
                     st.integers(min_value=0, max_value=252)
                 ),
-                "write_chunk_rows": draw(
-                    st.integers(min_value=1, max_value=100_000)
-                ),
+                "write_chunk_rows": draw(st.integers(min_value=1, max_value=100_000)),
             },
             "strategy": {
-                "position_count": draw(st.integers(min_value=1, max_value=len(universe)))
+                "position_count": draw(
+                    st.integers(min_value=1, max_value=len(universe))
+                )
             },
             "execution": {
                 "commission_bps": draw(
@@ -203,7 +201,7 @@ def test_canonical_redacted_configuration_round_trip(config: ResolvedConfig) -> 
     reloaded = parsed_result.value
     assert isinstance(reloaded.secrets.http_proxy, UnresolvedSecret)
     assert isinstance(reloaded.secrets.https_proxy, UnresolvedSecret)
-    assert _equivalent_non_secret_projection(reloaded) == _equivalent_non_secret_projection(
-        config
-    )
+    assert _equivalent_non_secret_projection(
+        reloaded
+    ) == _equivalent_non_secret_projection(config)
     assert serializer.serialize(reloaded) == first_serialization

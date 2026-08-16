@@ -11,11 +11,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Final, Generic, Protocol, Self, TypeAlias, TypeVar, runtime_checkable
 
 
-class ErrorCategory(str, Enum):
+class ErrorCategory(StrEnum):
     """Stable, display-safe categories for application-boundary failures."""
 
     CONFIGURATION_SYNTAX = "configuration.syntax"
@@ -41,7 +41,7 @@ class ErrorCategory(str, Enum):
     INTERNAL_UNEXPECTED = "internal.unexpected"
 
 
-class ValidationReason(str, Enum):
+class ValidationReason(StrEnum):
     """Stable rule identifiers emitted by deterministic validation."""
 
     SYMBOL_NONEMPTY = "symbol.nonempty"
@@ -53,7 +53,7 @@ class ValidationReason(str, Enum):
     RAW_LINEAGE = "lineage.raw_record"
 
 
-class QuarantineReason(str, Enum):
+class QuarantineReason(StrEnum):
     """Stable top-level reasons for records excluded from accepted data."""
 
     NON_SESSION = "session.non_xnys"
@@ -63,14 +63,14 @@ class QuarantineReason(str, Enum):
     MISSING_RAW_LINEAGE = "lineage.raw_record"
 
 
-class ProviderFailureKind(str, Enum):
+class ProviderFailureKind(StrEnum):
     """Whether unchanged provider input is eligible for a retry."""
 
     RETRYABLE = "retryable"
     TERMINAL = "terminal"
 
 
-class ProviderFailureReason(str, Enum):
+class ProviderFailureReason(StrEnum):
     """Stable provider-failure reasons independent of adapter exceptions."""
 
     TIMEOUT = "timeout"
@@ -84,7 +84,7 @@ class ProviderFailureReason(str, Enum):
     UNEXPECTED = "unexpected"
 
 
-class JobReason(str, Enum):
+class JobReason(StrEnum):
     """Stable operational reason codes; job states are defined separately."""
 
     COMPLETED = "completed"
@@ -156,7 +156,9 @@ class ActionableError:
                 f"unsupported error category: {self.category!r}"
             ) from error
         object.__setattr__(self, "category", category)
-        object.__setattr__(self, "message", _clean_required_text("message", self.message))
+        object.__setattr__(
+            self, "message", _clean_required_text("message", self.message)
+        )
         object.__setattr__(
             self,
             "corrective_action",
@@ -169,14 +171,16 @@ class ActionableError:
         symbol = _clean_optional_text("symbol", self.symbol)
         object.__setattr__(self, "symbol", symbol.upper() if symbol else None)
 
-        if self.session is not None:
-            if isinstance(self.session, datetime) or not isinstance(self.session, date):
-                raise TypeError("session must be a calendar date")
+        if self.session is not None and (
+            isinstance(self.session, datetime) or not isinstance(self.session, date)
+        ):
+            raise TypeError("session must be a calendar date")
 
         checksum = _clean_optional_text("checksum", self.checksum)
-        if checksum is not None:
-            if _CHECKSUM_PATTERN.fullmatch(checksum) is None:
-                raise ValueError("checksum must be a lowercase SHA-256 hexadecimal digest")
+        if checksum is not None and _CHECKSUM_PATTERN.fullmatch(checksum) is None:
+            raise ValueError(
+                "checksum must be a lowercase SHA-256 hexadecimal digest"
+            )
         object.__setattr__(self, "checksum", checksum)
         object.__setattr__(
             self,
@@ -306,9 +310,7 @@ DEFAULT_DATA_QUALITY_NOTICE: Final = (
     "Free-provider records can be incomplete, corrected, unavailable, or inconsistent; "
     "validation and provenance do not guarantee source truth."
 )
-DEFAULT_COST_ASSUMPTIONS: Final = (
-    "Configured commission and adverse-slippage assumptions are applied to simulated fills."
-)
+DEFAULT_COST_ASSUMPTIONS: Final = "Configured commission and adverse-slippage assumptions are applied to simulated fills."
 DEFAULT_EXECUTION_ASSUMPTIONS: Final = (
     "Configured execution uses long-only whole-share orders at the next eligible session "
     "open and is a research simulation, not live trading."

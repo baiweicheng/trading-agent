@@ -154,9 +154,7 @@ def test_empty_and_schema_invalid_frames_are_terminal_per_requested_symbol() -> 
         invalid_result.outcomes[0].failure_reason
         is ProviderFailureReason.SCHEMA_INVALID
     )
-    assert (
-        invalid_result.outcomes[0].failure_kind is ProviderFailureKind.TERMINAL
-    )
+    assert invalid_result.outcomes[0].failure_kind is ProviderFailureKind.TERMINAL
 
 
 class StatusError(RuntimeError):

@@ -16,10 +16,19 @@ from quant_research_platform.application.experiments import (  # noqa: E402
     ExperimentTracker,
     RunInputs,
 )
-from quant_research_platform.domain.evaluation import MetricScope, calculate_evaluation_metrics  # noqa: E402
-from quant_research_platform.domain.errors import ActionableError, ErrorCategory, Err, LimitationDisclosure  # noqa: E402
+from quant_research_platform.domain.errors import (
+    Err,
+    LimitationDisclosure,
+)  # noqa: E402
+from quant_research_platform.domain.evaluation import (
+    MetricScope,
+    calculate_evaluation_metrics,
+)  # noqa: E402
 from quant_research_platform.domain.execution import RunState  # noqa: E402
-from quant_research_platform.domain.manifests import ContentAddressedObjectRef, ObjectKind  # noqa: E402
+from quant_research_platform.domain.manifests import (
+    ContentAddressedObjectRef,
+    ObjectKind,
+)  # noqa: E402
 from quant_research_platform.infrastructure.duckdb_metadata import (  # noqa: E402
     DuckDBMetadataStore,
     ImmutableMetadataError,
@@ -101,7 +110,9 @@ class FaultMetadata:
     def set_mlflow_run_id(self, run_id: UUID, mlflow_run_id: str) -> object:
         return self.store.set_mlflow_run_id(run_id, mlflow_run_id)
 
-    def create_finalization_intent(self, run_id: UUID, finalization: object, **values: object) -> object:
+    def create_finalization_intent(
+        self, run_id: UUID, finalization: object, **values: object
+    ) -> object:
         self._fail_once("intent_commit")
         return self.store.create_finalization_intent(run_id, finalization, **values)  # type: ignore[arg-type]
 
@@ -111,7 +122,9 @@ class FaultMetadata:
     def get_finalization_intent(self, run_id: UUID) -> object:
         return self.store.get_finalization_intent(run_id)
 
-    def finalize_run(self, run_id: UUID, finalization: object, **values: object) -> object:
+    def finalize_run(
+        self, run_id: UUID, finalization: object, **values: object
+    ) -> object:
         self._fail_once("terminal_commit")
         return self.store.finalize_run(run_id, finalization, **values)  # type: ignore[arg-type]
 
@@ -149,13 +162,15 @@ def _result(*, checksum: str = ARTIFACT, manifest: str = MANIFEST) -> SimpleName
         evaluation=SimpleNamespace(strategy_metrics=_metrics()),
         manifest_checksum=manifest,
         manifest_uri="runs/manifest.json",
-        artifacts=(SimpleNamespace(
-            checksum=checksum,
-            role="equity",
-            relative_uri="runs/equity.parquet",
-            byte_size=17,
-            scientific=True,
-        ),),
+        artifacts=(
+            SimpleNamespace(
+                checksum=checksum,
+                role="equity",
+                relative_uri="runs/equity.parquet",
+                byte_size=17,
+                scientific=True,
+            ),
+        ),
     )
 
 
@@ -227,7 +242,9 @@ def _allocate(
     return tracker, handle
 
 
-def test_failure_before_artifact_publication_preserves_running_run_and_prior_valid_run(tmp_path: object) -> None:
+def test_failure_before_artifact_publication_preserves_running_run_and_prior_valid_run(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     prior_tracker, prior = _allocate(store, RUN_ONE)
     _store_artifact(store)
@@ -241,13 +258,16 @@ def test_failure_before_artifact_publication_preserves_running_run_and_prior_val
     )
     allocated = application.create_run(_inputs(RUN_TWO))
     assert not isinstance(allocated, Err)
-    failed = application.succeed(allocated.value, SimpleNamespace(
-        snapshot_id=SNAPSHOT,
-        manifest_checksum=MANIFEST,
-        manifest_uri="runs/manifest.json",
-        limitation_disclosure=LimitationDisclosure.current(),
-        artifacts=(_artifact_descriptor(),),
-    ))
+    failed = application.succeed(
+        allocated.value,
+        SimpleNamespace(
+            snapshot_id=SNAPSHOT,
+            manifest_checksum=MANIFEST,
+            manifest_uri="runs/manifest.json",
+            limitation_disclosure=LimitationDisclosure.current(),
+            artifacts=(_artifact_descriptor(),),
+        ),
+    )
 
     assert isinstance(failed, Err)
     assert store.get_run(RUN_TWO).state is RunState.RUNNING
@@ -256,7 +276,9 @@ def test_failure_before_artifact_publication_preserves_running_run_and_prior_val
     store.close()
 
 
-def test_failure_at_intent_commit_is_retryable_after_artifact_publication(tmp_path: object) -> None:
+def test_failure_at_intent_commit_is_retryable_after_artifact_publication(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     _store_artifact(store)
     tracker, handle = _allocate(store, RUN_ONE, failure="intent_commit")
@@ -276,7 +298,9 @@ def test_failure_at_intent_commit_is_retryable_after_artifact_publication(tmp_pa
     store.close()
 
 
-def test_mlflow_terminalization_failure_leaves_pending_intent_for_restart_replay(tmp_path: object) -> None:
+def test_mlflow_terminalization_failure_leaves_pending_intent_for_restart_replay(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     _store_artifact(store)
     failing_client = FaultClient(fail_terminal=True)
@@ -291,13 +315,17 @@ def test_mlflow_terminalization_failure_leaves_pending_intent_for_restart_replay
     assert store.get_finalization_intent(RUN_ONE).mlflow_synced is False
 
     healthy = LocalMlflowTracker(client=FaultClient(), metadata_store=store)
-    recovered = healthy.finalize_success(RunHandle(RUN_ONE, handle.mlflow_run_id), _result())
+    recovered = healthy.finalize_success(
+        RunHandle(RUN_ONE, handle.mlflow_run_id), _result()
+    )
     assert recovered.state is RunState.SUCCEEDED
     assert store.list_pending_finalization_intents() == ()
     store.close()
 
 
-def test_duckdb_terminal_commit_failure_replays_exact_intent_without_mutating_prior_run(tmp_path: object) -> None:
+def test_duckdb_terminal_commit_failure_replays_exact_intent_without_mutating_prior_run(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     _store_artifact(store)
     prior_tracker, prior = _allocate(store, RUN_ONE)
@@ -314,15 +342,22 @@ def test_duckdb_terminal_commit_failure_replays_exact_intent_without_mutating_pr
     assert store.get_run(RUN_ONE).state is RunState.SUCCEEDED
 
     restarted = LocalMlflowTracker(client=FaultClient(), metadata_store=store)
-    recovered = restarted.finalize_success(RunHandle(RUN_TWO, handle.mlflow_run_id), _result())
+    recovered = restarted.finalize_success(
+        RunHandle(RUN_TWO, handle.mlflow_run_id), _result()
+    )
     assert recovered.state is RunState.SUCCEEDED
     assert store.get_run(RUN_TWO).state is RunState.SUCCEEDED
     assert store.get_run(RUN_ONE).state is RunState.SUCCEEDED
-    assert store.get_finalization_intent(RUN_TWO).terminal_payload_checksum == intent.terminal_payload_checksum
+    assert (
+        store.get_finalization_intent(RUN_TWO).terminal_payload_checksum
+        == intent.terminal_payload_checksum
+    )
     store.close()
 
 
-def test_corrupt_artifact_invalidates_new_attempt_without_invalidating_prior_run(tmp_path: object) -> None:
+def test_corrupt_artifact_invalidates_new_attempt_without_invalidating_prior_run(
+    tmp_path: object,
+) -> None:
     store = DuckDBMetadataStore(tmp_path / "metadata.duckdb")  # type: ignore[operator]
     _store_artifact(store)
     _store_artifact(store, CORRUPT_ARTIFACT)

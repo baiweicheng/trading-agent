@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from quant_research_platform.application.snapshots import (
-    LocalPublishedSnapshotStore,
     SnapshotManager,
     SnapshotQuery,
 )
@@ -95,7 +94,9 @@ def _manifest_and_bytes(
     return manifest, object_bytes, report_bytes, reference
 
 
-def _publish(root: Path, manifest: Any, object_bytes: bytes, report_bytes: bytes) -> None:
+def _publish(
+    root: Path, manifest: Any, object_bytes: bytes, report_bytes: bytes
+) -> None:
     object_ref = manifest.content_identity.objects[0]
     object_path = root / object_ref.relative_uri
     object_path.parent.mkdir(parents=True, exist_ok=True)
@@ -109,7 +110,9 @@ def _publish(root: Path, manifest: Any, object_bytes: bytes, report_bytes: bytes
     manifest_path.write_bytes(canonical_json(manifest.to_manifest_dict()))
 
 
-def test_open_verifies_manifest_objects_and_exposes_inspection_details(tmp_path: Path) -> None:
+def test_open_verifies_manifest_objects_and_exposes_inspection_details(
+    tmp_path: Path,
+) -> None:
     manifest, object_bytes, report_bytes, _ = _manifest_and_bytes()
     _publish(tmp_path, manifest, object_bytes, report_bytes)
     manager = SnapshotManager(tmp_path)
@@ -174,7 +177,9 @@ def test_relocated_published_root_resolves_same_snapshot_id(tmp_path: Path) -> N
     assert result.value.snapshot_id == manifest.snapshot_id
 
 
-def test_list_returns_bounded_summaries_and_mutations_are_rejected(tmp_path: Path) -> None:
+def test_list_returns_bounded_summaries_and_mutations_are_rejected(
+    tmp_path: Path,
+) -> None:
     first, first_bytes, first_report, _ = _manifest_and_bytes()
     second, second_bytes, second_report, _ = _manifest_and_bytes(
         object_bytes=b"a different normalized object",

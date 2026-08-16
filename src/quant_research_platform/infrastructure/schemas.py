@@ -611,8 +611,7 @@ def _validate_row_rules(schema_name: str, row: Mapping[str, object]) -> None:
         if not reasons or len(reasons) != len(set(reasons)):
             raise ValueError("reason_codes must be a non-empty duplicate-free list")
         if any(
-            re.fullmatch(r"[a-z][a-z0-9_.-]*", reason) is None
-            for reason in reasons
+            re.fullmatch(r"[a-z][a-z0-9_.-]*", reason) is None for reason in reasons
         ):
             raise ValueError("reason_codes must use canonical lowercase reason strings")
         if (row["symbol"] is None) != (row["session"] is None):

@@ -22,7 +22,6 @@ from typing import Final, Protocol, TypeAlias, cast
 
 from .canonical import canonical_rational, sha256_canonical_json
 
-
 STRATEGY_IDENTIFIER: Final = "monthly_momentum_v1"
 LONG_LOOKBACK_SESSIONS: Final = 252
 SKIP_RECENT_SESSIONS: Final = 21
@@ -216,7 +215,9 @@ class StrategyDecision:
         endpoint_21_session = self.endpoint_21_session
         if endpoint_252_session is not None and endpoint_21_session is not None:
             if endpoint_252_session > endpoint_21_session:
-                raise ValueError("endpoint_252_session must not be after endpoint_21_session")
+                raise ValueError(
+                    "endpoint_252_session must not be after endpoint_21_session"
+                )
         for endpoint_name, endpoint_session in (
             ("endpoint_252_session", endpoint_252_session),
             ("endpoint_21_session", endpoint_21_session),
@@ -260,7 +261,9 @@ class StrategyDecision:
         self, prefix: str, endpoint_session: date | None, endpoint_close: Decimal | None
     ) -> None:
         if (endpoint_session is None) != (endpoint_close is None):
-            raise ValueError(f"{prefix}_session and {prefix}_close must be supplied together")
+            raise ValueError(
+                f"{prefix}_session and {prefix}_close must be supplied together"
+            )
         if endpoint_session is not None:
             _require_date(f"{prefix}_session", endpoint_session)
             assert endpoint_close is not None
@@ -298,7 +301,9 @@ class StrategyDecision:
                         "not_selected"
                     )
             elif reason is not None:
-                raise ValueError("a selected decision must not have an exclusion_reason")
+                raise ValueError(
+                    "a selected decision must not have an exclusion_reason"
+                )
             return
 
         if self.rank is not None:
@@ -369,7 +374,9 @@ class PriceObservation:
                 else Decimal(str(self.adjusted_close))
             )
         except (InvalidOperation, ValueError) as error:
-            raise TypeError("adjusted_close must be a finite positive Decimal") from error
+            raise TypeError(
+                "adjusted_close must be a finite positive Decimal"
+            ) from error
         if not close.is_finite() or close <= 0:
             raise ValueError("adjusted_close must be finite and positive")
         if not isinstance(self.tradable, bool):
@@ -563,7 +570,9 @@ def _observation_from_value(
                     symbol=values[0],
                     session=tuple_session,
                     adjusted_close=values[2],
-                    checksum=values[3] if len(values) > 3 and isinstance(values[3], str) else None,
+                    checksum=values[3]
+                    if len(values) > 3 and isinstance(values[3], str)
+                    else None,
                     tradable=values[4] if len(values) > 4 else True,
                 )
         if len(values) >= 2:
@@ -573,7 +582,9 @@ def _observation_from_value(
                     symbol=symbol_hint,
                     session=tuple_session,
                     adjusted_close=values[1],
-                    checksum=values[2] if len(values) > 2 and isinstance(values[2], str) else None,
+                    checksum=values[2]
+                    if len(values) > 2 and isinstance(values[2], str)
+                    else None,
                     tradable=values[3] if len(values) > 3 else True,
                 )
 
@@ -585,7 +596,11 @@ def _observation_from_value(
     if close_value is None:
         close_value = getattr(value, "close", None)
     if symbol_value is None or session_value is None or close_value is None:
-        if symbol_hint is not None and session_hint is not None and _is_price_scalar(value):
+        if (
+            symbol_hint is not None
+            and session_hint is not None
+            and _is_price_scalar(value)
+        ):
             return PriceObservation(symbol_hint, session_hint, value)
         return None
     session = _date_like(session_value)
@@ -718,7 +733,9 @@ def _derived_month_end_sessions(
         return ()
     if calendar is not None:
         selected = calendar.month_end_sessions(sessions[0], sessions[-1])
-        return tuple(sorted({_require_date("signal_session", session) for session in selected}))
+        return tuple(
+            sorted({_require_date("signal_session", session) for session in selected})
+        )
     month_ends: dict[tuple[int, int], date] = {}
     for session in sessions:
         month_ends[(session.year, session.month)] = session
@@ -774,9 +791,11 @@ def monthly_momentum_v1(
             position_count = None
         else:
             position_count = protocol_params
-        if protocol_universe is not None and not isinstance(
-            protocol_universe, (str, bytes)
-        ) and not hasattr(protocol_universe, "__iter__"):
+        if (
+            protocol_universe is not None
+            and not isinstance(protocol_universe, (str, bytes))
+            and not hasattr(protocol_universe, "__iter__")
+        ):
             # A protocol-style third positional argument is portfolio state,
             # not the configured symbol universe.
             universe = None
@@ -790,7 +809,9 @@ def monthly_momentum_v1(
         raise TypeError("params must be MomentumStrategyParameters or None")
     if isinstance(position_count, MomentumStrategyParameters):
         if params is not None and params != position_count:
-            raise ValueError("position_count and params specify different strategy parameters")
+            raise ValueError(
+                "position_count and params specify different strategy parameters"
+            )
         params = position_count
         position_count = None
     by_key, history_sessions = _normalize_history(history)
@@ -850,7 +871,9 @@ def monthly_momentum_v1(
     requested_signals: tuple[date, ...] | None
     if signal_sessions is not None:
         if signal_session is not None:
-            raise ValueError("signal_session and signal_sessions are aliases; supply one")
+            raise ValueError(
+                "signal_session and signal_sessions are aliases; supply one"
+            )
         requested_signals = tuple(
             sorted({_require_date("signal_session", item) for item in signal_sessions})
         )
@@ -891,7 +914,9 @@ def monthly_momentum_v1(
                 by_key.get((symbol, long_session)) if long_session is not None else None
             )
             short_row = (
-                by_key.get((symbol, short_session)) if short_session is not None else None
+                by_key.get((symbol, short_session))
+                if short_session is not None
+                else None
             )
             endpoint_rows[symbol] = (long_session, long_row)
             endpoint_rows[f"{symbol}:short"] = (short_session, short_row)
@@ -915,26 +940,41 @@ def monthly_momentum_v1(
                 assert long_row is not None and short_row is not None
                 with localcontext() as context:
                     context.prec = 28
-                    score = short_row.adjusted_close / long_row.adjusted_close - Decimal("1")
-                if not _lookup_tradability(active_tradability, symbol, signal, by_key.get((symbol, signal))):
+                    score = (
+                        short_row.adjusted_close / long_row.adjusted_close
+                        - Decimal("1")
+                    )
+                if not _lookup_tradability(
+                    active_tradability, symbol, signal, by_key.get((symbol, signal))
+                ):
                     reason = StrategyExclusionReason.ASSET_NOT_TRADABLE
                 else:
                     eligible_scores.append((symbol, score))
             preliminary[symbol] = {
                 "endpoint_252_close": long_row.adjusted_close if long_row else None,
-                "endpoint_252_checksum": long_row.canonical_row_checksum if long_row else None,
+                "endpoint_252_checksum": long_row.canonical_row_checksum
+                if long_row
+                else None,
                 "endpoint_252_session": long_date if long_row else None,
                 "endpoint_21_close": short_row.adjusted_close if short_row else None,
-                "endpoint_21_checksum": short_row.canonical_row_checksum if short_row else None,
+                "endpoint_21_checksum": short_row.canonical_row_checksum
+                if short_row
+                else None,
                 "endpoint_21_session": short_date if short_row else None,
                 "exclusion_reason": reason,
                 "momentum_score": score,
             }
 
         eligible_scores.sort(key=lambda item: (-item[1], item[0]))
-        ranks = {symbol: rank for rank, (symbol, _) in enumerate(eligible_scores, start=1)}
+        ranks = {
+            symbol: rank for rank, (symbol, _) in enumerate(eligible_scores, start=1)
+        }
         selected = {symbol for symbol, _ in eligible_scores[: params.position_count]}
-        target_weight = RationalWeight.equal_allocation(len(selected)) if selected else RationalWeight.zero()
+        target_weight = (
+            RationalWeight.equal_allocation(len(selected))
+            if selected
+            else RationalWeight.zero()
+        )
 
         for symbol in configured_symbols:
             values = preliminary[symbol]
@@ -949,17 +989,29 @@ def monthly_momentum_v1(
                 StrategyDecision(
                     signal_session=signal,
                     symbol=symbol,
-                    endpoint_252_session=cast(date | None, values["endpoint_252_session"]),
-                    endpoint_252_close=cast(Decimal | None, values["endpoint_252_close"]),
-                    endpoint_21_session=cast(date | None, values["endpoint_21_session"]),
+                    endpoint_252_session=cast(
+                        date | None, values["endpoint_252_session"]
+                    ),
+                    endpoint_252_close=cast(
+                        Decimal | None, values["endpoint_252_close"]
+                    ),
+                    endpoint_21_session=cast(
+                        date | None, values["endpoint_21_session"]
+                    ),
                     endpoint_21_close=cast(Decimal | None, values["endpoint_21_close"]),
                     momentum_score=cast(Decimal | None, values["momentum_score"]),
                     eligible=is_eligible,
                     rank=rank,
-                    target_weight=target_weight if symbol in selected else RationalWeight.zero(),
+                    target_weight=target_weight
+                    if symbol in selected
+                    else RationalWeight.zero(),
                     exclusion_reason=reason,
-                    endpoint_252_checksum=cast(str | None, values["endpoint_252_checksum"]),
-                    endpoint_21_checksum=cast(str | None, values["endpoint_21_checksum"]),
+                    endpoint_252_checksum=cast(
+                        str | None, values["endpoint_252_checksum"]
+                    ),
+                    endpoint_21_checksum=cast(
+                        str | None, values["endpoint_21_checksum"]
+                    ),
                 )
             )
     return tuple(output)

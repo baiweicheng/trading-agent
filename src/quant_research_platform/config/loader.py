@@ -217,7 +217,9 @@ def _join_path(path: tuple[str, ...]) -> str:
     return ".".join(path) if path else "<root>"
 
 
-def _duplicate_key(node: Node | None, path: tuple[str, ...] = ()) -> tuple[str, object] | None:
+def _duplicate_key(
+    node: Node | None, path: tuple[str, ...] = ()
+) -> tuple[str, object] | None:
     """Find the first duplicate key, preserving its complete YAML nesting path."""
 
     if isinstance(node, MappingNode):
@@ -384,7 +386,9 @@ def _known_yaml_values(
     return known, errors, structural_error_paths
 
 
-def _assign_leaf(target: dict[str, object], path: tuple[str, ...], value: object) -> None:
+def _assign_leaf(
+    target: dict[str, object], path: tuple[str, ...], value: object
+) -> None:
     current = target
     for component in path[:-1]:
         child = current.get(component)
@@ -482,7 +486,9 @@ def _field_path_tokens(field_path: str) -> tuple[tuple[str, ...], tuple[int, ...
     return tuple(names), tuple(indexes)
 
 
-def _configuration_error_sort_key(error: ActionableError) -> tuple[tuple[int, ...], str, str]:
+def _configuration_error_sort_key(
+    error: ActionableError,
+) -> tuple[tuple[int, ...], str, str]:
     field_path = error.field_path or ""
     names, indexes = _field_path_tokens(field_path)
     for length in range(len(names), 0, -1):
@@ -497,7 +503,9 @@ def _configuration_error_sort_key(error: ActionableError) -> tuple[tuple[int, ..
     return ((99_999,), field_path, error.message)
 
 
-def _configuration_err(errors: tuple[ActionableError, ...] | list[ActionableError]) -> Err:
+def _configuration_err(
+    errors: tuple[ActionableError, ...] | list[ActionableError],
+) -> Err:
     """Return errors in Pydantic schema field and list-index order."""
 
     return Err(
@@ -508,7 +516,9 @@ def _configuration_err(errors: tuple[ActionableError, ...] | list[ActionableErro
 
 def _pydantic_path(detail: Mapping[str, object]) -> str:
     raw_location = detail.get("loc", ())
-    parts = [str(part) for part in raw_location] if isinstance(raw_location, tuple) else []
+    parts = (
+        [str(part) for part in raw_location] if isinstance(raw_location, tuple) else []
+    )
     path = ".".join(parts) or "configuration"
     message = str(detail.get("msg", "invalid configuration value"))
     explicit_path = _FIELD_PATH_PATTERN.search(message)
@@ -570,12 +580,16 @@ def _pydantic_errors(
 
 def _sanitize(text: str, secret_values: tuple[str, ...]) -> str:
     sanitized = text
-    for secret in sorted((value for value in secret_values if value), key=len, reverse=True):
+    for secret in sorted(
+        (value for value in secret_values if value), key=len, reverse=True
+    ):
         sanitized = sanitized.replace(secret, REDACTION_MARKER)
     return sanitized
 
 
-def _normalize_paths(config: ResolvedConfig, project_root: Path) -> Result[ResolvedConfig]:
+def _normalize_paths(
+    config: ResolvedConfig, project_root: Path
+) -> Result[ResolvedConfig]:
     normalized_values = config.paths.model_dump(mode="python")
     errors: list[ActionableError] = []
     for field_name in PathConfig.model_fields:

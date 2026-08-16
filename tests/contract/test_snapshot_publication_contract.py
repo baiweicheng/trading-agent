@@ -39,8 +39,7 @@ def _manifest(object_bytes: bytes, report_bytes: bytes) -> SnapshotManifest:
         object_kind=ObjectKind.NORMALIZED,
         checksum=object_checksum,
         relative_uri=(
-            "objects/normalized/symbol=AAPL/year=2024/"
-            f"sha256={object_checksum}.parquet"
+            f"objects/normalized/symbol=AAPL/year=2024/sha256={object_checksum}.parquet"
         ),
         schema_version="daily_bar_v1",
         row_count=1,
@@ -104,9 +103,9 @@ def test_publication_indexes_only_after_complete_rename_and_opens_verified_conte
         metadata.get_snapshot(manifest.snapshot_id).availability
         is SnapshotAvailability.AVAILABLE
     )
-    opened = SnapshotManager(
-        storage=store, metadata=metadata
-    ).open_verified(manifest.snapshot_id)
+    opened = SnapshotManager(storage=store, metadata=metadata).open_verified(
+        manifest.snapshot_id
+    )
     assert isinstance(opened, Ok)
     metadata.close()
 

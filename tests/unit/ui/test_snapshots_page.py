@@ -162,11 +162,7 @@ def test_snapshots_page_uses_bounded_query_and_renders_verified_details() -> Non
     assert rendered["detail"]["snapshot"]["snapshot_id"] == SNAPSHOT_ID
     assert any("Limitations and assumptions" in str(call) for call in ui.calls)
     assert any("immutable" in str(call).lower() for call in ui.calls)
-    assert all(
-        len(call[1][0]) <= 25
-        for call in _calls(ui, "dataframe")
-        if call[1]
-    )
+    assert all(len(call[1][0]) <= 25 for call in _calls(ui, "dataframe") if call[1])
 
 
 def test_corrupt_snapshot_is_visible_for_diagnostics_but_not_selectable() -> None:

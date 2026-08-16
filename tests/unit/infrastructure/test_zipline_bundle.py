@@ -68,8 +68,7 @@ class FixtureSource:
         normalized_columns = tuple(columns)
         self.calls.append((normalized_columns, normalized_columns))
         return tuple(
-            {column: row[column] for column in normalized_columns}
-            for row in selected
+            {column: row[column] for column in normalized_columns} for row in selected
         )
 
 
@@ -267,7 +266,8 @@ def test_materialize_is_deterministic_raw_only_and_rebuilds_corrupt_cache(
         "split_ratio",
     )
     assert all(
-        columns == (
+        columns
+        == (
             "symbol",
             "session",
             "raw_open",
@@ -278,9 +278,7 @@ def test_materialize_is_deterministic_raw_only_and_rebuilds_corrupt_cache(
         )
         for columns, _ in source.calls[1:]
     )
-    assert [dividend.amount for dividend in first_call["dividends"]] == [
-        Decimal("0.5")
-    ]
+    assert [dividend.amount for dividend in first_call["dividends"]] == [Decimal("0.5")]
     assert first_locator.bundle_name != "latest"
     assert first_locator.cache_path.joinpath("bundle_manifest.json").is_file()
 

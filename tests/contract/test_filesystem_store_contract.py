@@ -8,8 +8,8 @@ import pytest
 
 from quant_research_platform.infrastructure import filesystem_store as filesystem_module
 from quant_research_platform.infrastructure.filesystem_store import (
-    IntegrityVerificationError,
     FilesystemStore,
+    IntegrityVerificationError,
     PublisherLockError,
 )
 
@@ -62,7 +62,9 @@ def test_artifact_publication_fsyncs_and_renames_on_one_device_then_verifies_byt
     )
 
     cas_path.write_bytes(b"corrupt")
-    with pytest.raises(IntegrityVerificationError, match="(byte size|SHA-256) mismatch"):
+    with pytest.raises(
+        IntegrityVerificationError, match="(byte size|SHA-256) mismatch"
+    ):
         list(store.stream_artifact(reference))
 
 
@@ -72,10 +74,12 @@ def test_publisher_lock_excludes_a_second_store_until_the_first_releases_it(
     first = FilesystemStore(tmp_path / "store")
     second = FilesystemStore(tmp_path / "store")
 
-    with first.publisher_lock():
-        with pytest.raises(PublisherLockError, match="another local publisher"):
-            with second.publisher_lock():
-                pass
+    with (
+        first.publisher_lock(),
+        pytest.raises(PublisherLockError, match="another local publisher"),
+        second.publisher_lock(),
+    ):
+        pass
 
     with second.publisher_lock():
         pass

@@ -246,9 +246,7 @@ def _safe_table(
     )
 
 
-def _difference_rows(
-    differences: object, *, category: str
-) -> list[dict[str, object]]:
+def _difference_rows(differences: object, *, category: str) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for difference in _items(differences):
         if isinstance(difference, Mapping):
@@ -297,9 +295,7 @@ def _metric_rows(runs: object) -> list[dict[str, object]]:
     return rows
 
 
-def _range_rows(
-    runs: object, aligned_range: object
-) -> list[dict[str, object]]:
+def _range_rows(runs: object, aligned_range: object) -> list[dict[str, object]]:
     if isinstance(aligned_range, Mapping):
         aligned_start = aligned_range.get("start")
         aligned_end = aligned_range.get("end")
@@ -615,9 +611,7 @@ def render_compare(
         )
         return
     if isinstance(discovered, Err):
-        render_actionable_errors(
-            discovered, st_module=ui, redactor=cast(Any, redactor)
-        )
+        render_actionable_errors(discovered, st_module=ui, redactor=cast(Any, redactor))
         return
 
     records = _page_items(discovered)
@@ -627,9 +621,7 @@ def render_compare(
             discovery_errors, st_module=ui, redactor=cast(Any, redactor)
         )
     all_options = tuple(
-        option
-        for record in records
-        if (option := _option(record)) is not None
+        option for record in records if (option := _option(record)) is not None
     )
     options_by_id: dict[str, _RunOption] = {}
     for option in all_options:
@@ -668,9 +660,11 @@ def render_compare(
         "Runs (selection order is preserved)",
         options,
         default=(),
-        format_func=lambda value: options_by_id[str(value)].label
-        if str(value) in options_by_id
-        else str(value),
+        format_func=lambda value: (
+            options_by_id[str(value)].label
+            if str(value) in options_by_id
+            else str(value)
+        ),
         key="qrp-compare-selection",
     )
     if selected_value is None:
@@ -719,9 +713,7 @@ def render_compare(
     except Exception:
         result = Err((_unexpected("comparison.execute"),), preserve_order=True)
     if isinstance(result, Err):
-        render_actionable_errors(
-            result, st_module=ui, redactor=cast(Any, redactor)
-        )
+        render_actionable_errors(result, st_module=ui, redactor=cast(Any, redactor))
         return
     if not isinstance(result, Ok):
         render_actionable_errors(

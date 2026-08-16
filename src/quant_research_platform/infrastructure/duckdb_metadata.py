@@ -161,7 +161,9 @@ class RunArtifactLink:
     scientific: bool
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "checksum", _require_checksum("checksum", self.checksum))
+        object.__setattr__(
+            self, "checksum", _require_checksum("checksum", self.checksum)
+        )
         object.__setattr__(self, "role", _require_text("role", self.role))
         if not isinstance(self.scientific, bool):
             raise TypeError("scientific must be a boolean")
@@ -192,22 +194,34 @@ class RunFinalization:
         checksum = self.manifest_checksum
         uri = self.manifest_uri
         if (checksum is None) != (uri is None):
-            raise ValueError("manifest_checksum and manifest_uri must be supplied together")
+            raise ValueError(
+                "manifest_checksum and manifest_uri must be supplied together"
+            )
         if checksum is not None:
-            object.__setattr__(self, "manifest_checksum", _require_checksum("manifest_checksum", checksum))
-            object.__setattr__(self, "manifest_uri", _require_relative_uri("manifest_uri", uri))
+            object.__setattr__(
+                self,
+                "manifest_checksum",
+                _require_checksum("manifest_checksum", checksum),
+            )
+            object.__setattr__(
+                self, "manifest_uri", _require_relative_uri("manifest_uri", uri)
+            )
         if not isinstance(self.metrics, tuple):
             raise TypeError("metrics must be an immutable tuple")
         if any(not isinstance(metric, EvaluationMetrics) for metric in self.metrics):
             raise TypeError("metrics must contain EvaluationMetrics values")
-        metric_scopes = tuple(MetricScope(metric.scope).value for metric in self.metrics)
+        metric_scopes = tuple(
+            MetricScope(metric.scope).value for metric in self.metrics
+        )
         if metric_scopes != tuple(sorted(metric_scopes)):
             raise ValueError("metrics must be sorted by scope")
         if len(set(metric_scopes)) != len(metric_scopes):
             raise ValueError("metrics must contain at most one collection per scope")
         if not isinstance(self.artifacts, tuple):
             raise TypeError("artifacts must be an immutable tuple")
-        if any(not isinstance(artifact, RunArtifactLink) for artifact in self.artifacts):
+        if any(
+            not isinstance(artifact, RunArtifactLink) for artifact in self.artifacts
+        ):
             raise TypeError("artifacts must contain RunArtifactLink values")
         artifact_keys = tuple((item.role, item.checksum) for item in self.artifacts)
         if artifact_keys != tuple(sorted(artifact_keys)):
@@ -224,7 +238,9 @@ class RunFinalization:
             if self.errors:
                 raise ValueError("succeeded finalization must not include errors")
         if state is RunState.FAILED and not self.errors:
-            raise ValueError("failed finalization requires at least one actionable error")
+            raise ValueError(
+                "failed finalization requires at least one actionable error"
+            )
         object.__setattr__(self, "desired_state", state)
         object.__setattr__(
             self,
@@ -305,9 +321,13 @@ class RunQuery:
         if self.run_id is not None and not isinstance(self.run_id, UUID):
             raise TypeError("run_id must be a UUID or None")
         if self.snapshot_id is not None:
-            object.__setattr__(self, "snapshot_id", _require_snapshot_id(self.snapshot_id))
+            object.__setattr__(
+                self, "snapshot_id", _require_snapshot_id(self.snapshot_id)
+            )
         if self.strategy_id is not None:
-            object.__setattr__(self, "strategy_id", _require_text("strategy_id", self.strategy_id))
+            object.__setattr__(
+                self, "strategy_id", _require_text("strategy_id", self.strategy_id)
+            )
         if self.universe is not None:
             if not isinstance(self.universe, tuple):
                 raise TypeError("universe must be an immutable tuple or None")
@@ -319,19 +339,29 @@ class RunQuery:
             value = getattr(self, name)
             if value is not None:
                 object.__setattr__(self, name, _require_date(name, value))
-        if self.evaluation_start is not None and self.evaluation_end is not None:
-            if self.evaluation_start > self.evaluation_end:
-                raise ValueError("evaluation_start must not be after evaluation_end")
+        if (
+            self.evaluation_start is not None
+            and self.evaluation_end is not None
+            and self.evaluation_start > self.evaluation_end
+        ):
+            raise ValueError("evaluation_start must not be after evaluation_end")
         if self.state is not None:
             object.__setattr__(self, "state", RunState(self.state))
         for name in ("created_from", "created_to"):
             value = getattr(self, name)
             if value is not None:
                 object.__setattr__(self, name, _require_utc_datetime(name, value))
-        if self.created_from is not None and self.created_to is not None:
-            if self.created_from > self.created_to:
-                raise ValueError("created_from must not be after created_to")
-        if isinstance(self.page, bool) or not isinstance(self.page, int) or self.page < 0:
+        if (
+            self.created_from is not None
+            and self.created_to is not None
+            and self.created_from > self.created_to
+        ):
+            raise ValueError("created_from must not be after created_to")
+        if (
+            isinstance(self.page, bool)
+            or not isinstance(self.page, int)
+            or self.page < 0
+        ):
             raise ValueError("page must be a non-negative integer")
         if (
             isinstance(self.page_size, bool)
@@ -705,7 +735,9 @@ def _json_tuple(value: object) -> tuple[str, ...]:
     if value is None:
         return ()
     decoded = json.loads(str(value))
-    if not isinstance(decoded, list) or any(not isinstance(item, str) for item in decoded):
+    if not isinstance(decoded, list) or any(
+        not isinstance(item, str) for item in decoded
+    ):
         raise MetadataStoreError("stored JSON array has an invalid shape")
     return tuple(decoded)
 
@@ -714,12 +746,16 @@ def _json_text(value: object | None) -> str | None:
     return None if value is None else str(value)
 
 
-def _verify_terminal_payload(payload_json: str, expected_checksum: str) -> dict[str, object]:
+def _verify_terminal_payload(
+    payload_json: str, expected_checksum: str
+) -> dict[str, object]:
     """Verify a persisted intent before it can participate in recovery."""
     try:
         decoded = json.loads(payload_json)
     except (TypeError, ValueError) as error:
-        raise MetadataStoreError("stored finalization payload is not valid JSON") from error
+        raise MetadataStoreError(
+            "stored finalization payload is not valid JSON"
+        ) from error
     if not isinstance(decoded, dict):
         raise MetadataStoreError("stored finalization payload must be a JSON object")
     actual_checksum = sha256_canonical_json(decoded)
@@ -734,7 +770,9 @@ class DuckDBMetadataStore:
     def __init__(self, database_path: Path | str) -> None:
         database = str(database_path)
         if database != ":memory:":
-            Path(database).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
+            Path(database).expanduser().resolve().parent.mkdir(
+                parents=True, exist_ok=True
+            )
         self._database_path = database
         self._connection: Any = duckdb.connect(database)
         self._lock = threading.RLock()
@@ -799,7 +837,9 @@ class DuckDBMetadataStore:
             ).fetchall()
             versions = {int(row[0]) for row in rows}
             if any(version > SCHEMA_VERSION for version in versions):
-                raise MetadataStoreError("metadata database uses a newer schema version")
+                raise MetadataStoreError(
+                    "metadata database uses a newer schema version"
+                )
             next_version = max(versions, default=0) + 1
             while next_version <= SCHEMA_VERSION:
                 self._connection.execute("BEGIN TRANSACTION")
@@ -835,7 +875,9 @@ class DuckDBMetadataStore:
         end = _require_date("requested_end", requested_end)
         if start > end:
             raise ValueError("requested_start must not be after requested_end")
-        parent = _require_snapshot_id(parent_snapshot_id) if parent_snapshot_id else None
+        parent = (
+            _require_snapshot_id(parent_snapshot_id) if parent_snapshot_id else None
+        )
         record = IngestionOperationRecord(
             operation_id=operation_id,
             job_id=job_id,
@@ -878,18 +920,26 @@ class DuckDBMetadataStore:
             raise TypeError("operation_id must be a UUID")
         target = IngestionOperationStatus(status)
         if target is IngestionOperationStatus.RUNNING:
-            raise IllegalMetadataTransitionError("ingestion operations must end terminally")
-        snapshot_id = _require_snapshot_id(result_snapshot_id) if result_snapshot_id else None
+            raise IllegalMetadataTransitionError(
+                "ingestion operations must end terminally"
+            )
+        snapshot_id = (
+            _require_snapshot_id(result_snapshot_id) if result_snapshot_id else None
+        )
         with self.transaction():
             row = self._connection.execute(
                 "SELECT status FROM ingestion_operation WHERE operation_id = ?",
                 [str(operation_id)],
             ).fetchone()
             if row is None:
-                raise MetadataNotFoundError(f"ingestion operation {operation_id} was not found")
+                raise MetadataNotFoundError(
+                    f"ingestion operation {operation_id} was not found"
+                )
             current = IngestionOperationStatus(row[0])
             if current is not IngestionOperationStatus.RUNNING:
-                raise IllegalMetadataTransitionError("ingestion operation is already terminal")
+                raise IllegalMetadataTransitionError(
+                    "ingestion operation is already terminal"
+                )
             self._connection.execute(
                 """
                 UPDATE ingestion_operation
@@ -915,7 +965,9 @@ class DuckDBMetadataStore:
                 [str(operation_id)],
             ).fetchone()
         if row is None:
-            raise MetadataNotFoundError(f"ingestion operation {operation_id} was not found")
+            raise MetadataNotFoundError(
+                f"ingestion operation {operation_id} was not found"
+            )
         return IngestionOperationRecord(
             operation_id=UUID(str(row[0])),
             job_id=UUID(str(row[1])),
@@ -1014,7 +1066,9 @@ class DuckDBMetadataStore:
         if not isinstance(reference, ContentAddressedObjectRef):
             raise TypeError("reference must be a ContentAddressedObjectRef")
         created = _require_utc_datetime("created_at", created_at)
-        kind = _require_text("artifact_kind", artifact_kind or reference.object_kind.value)
+        kind = _require_text(
+            "artifact_kind", artifact_kind or reference.object_kind.value
+        )
         with self.transaction():
             self._record_data_object(reference, created)
             existing = self._connection.execute(
@@ -1041,7 +1095,12 @@ class DuckDBMetadataStore:
                       row_count, schema_version, created_at, availability
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    [reference.checksum, *expected, created, SnapshotAvailability.AVAILABLE.value],
+                    [
+                        reference.checksum,
+                        *expected,
+                        created,
+                        SnapshotAvailability.AVAILABLE.value,
+                    ],
                 )
             elif tuple(existing) != expected:
                 raise ImmutableMetadataError(
@@ -1111,8 +1170,12 @@ class DuckDBMetadataStore:
         uri = _require_relative_uri("manifest_uri", manifest_uri)
         if not isinstance(symbol_statuses, tuple):
             raise TypeError("symbol_statuses must be an immutable tuple")
-        if any(not isinstance(item, SymbolValidationSummary) for item in symbol_statuses):
-            raise TypeError("symbol_statuses must contain SymbolValidationSummary values")
+        if any(
+            not isinstance(item, SymbolValidationSummary) for item in symbol_statuses
+        ):
+            raise TypeError(
+                "symbol_statuses must contain SymbolValidationSummary values"
+            )
         statuses = tuple(sorted(symbol_statuses, key=SymbolValidationSummary.sort_key))
         if len({item.symbol for item in statuses}) != len(statuses):
             raise ValueError("symbol_statuses must contain one row per symbol")
@@ -1276,7 +1339,9 @@ class DuckDBMetadataStore:
             ).fetchall()
         return tuple(self._snapshot_record(row) for row in rows)
 
-    def list_snapshot_objects(self, snapshot_id: str) -> tuple[SnapshotObjectRecord, ...]:
+    def list_snapshot_objects(
+        self, snapshot_id: str
+    ) -> tuple[SnapshotObjectRecord, ...]:
         """List immutable snapshot references in their stored canonical order."""
         identifier = _require_snapshot_id(snapshot_id)
         with self._lock:
@@ -1326,13 +1391,17 @@ class DuckDBMetadataStore:
         if not isinstance(universe, tuple):
             raise TypeError("universe must be an immutable tuple")
         normalized_universe = tuple(normalize_symbol(symbol) for symbol in universe)
-        if not normalized_universe or len(set(normalized_universe)) != len(normalized_universe):
+        if not normalized_universe or len(set(normalized_universe)) != len(
+            normalized_universe
+        ):
             raise ValueError("universe must contain distinct normalized symbols")
         created = _require_utc_datetime("created_at", created_at)
         started = _require_utc_datetime("started_at", started_at)
         if started < created:
             raise ValueError("started_at must not precede created_at")
-        mlflow = _require_text("mlflow_run_id", mlflow_run_id) if mlflow_run_id else None
+        mlflow = (
+            _require_text("mlflow_run_id", mlflow_run_id) if mlflow_run_id else None
+        )
         with self.transaction():
             self._connection.execute(
                 """
@@ -1434,10 +1503,17 @@ class DuckDBMetadataStore:
                     ],
                 )
             else:
-                stored_payload = _verify_terminal_payload(str(existing[2]), str(existing[1]))
+                stored_payload = _verify_terminal_payload(
+                    str(existing[2]), str(existing[1])
+                )
                 if stored_payload.get("desired_state") != str(existing[0]):
-                    raise MetadataStoreError("stored finalization intent state does not match payload")
-                if tuple(existing[:2]) != (RunState(finalization.desired_state).value, checksum):
+                    raise MetadataStoreError(
+                        "stored finalization intent state does not match payload"
+                    )
+                if tuple(existing[:2]) != (
+                    RunState(finalization.desired_state).value,
+                    checksum,
+                ):
                     raise ImmutableMetadataError(
                         "run finalization intent already has a different terminal payload"
                     )
@@ -1464,14 +1540,21 @@ class DuckDBMetadataStore:
                 "SELECT run_id FROM run_finalization WHERE run_id = ?", [identifier]
             ).fetchone()
             if row is None:
-                raise MetadataNotFoundError(f"run finalization intent for {run_id} was not found")
+                raise MetadataNotFoundError(
+                    f"run finalization intent for {run_id} was not found"
+                )
             self._connection.execute(
                 """
                 UPDATE run_finalization
                 SET mlflow_synced = ?, last_attempt_at = ?, last_error_json = ?
                 WHERE run_id = ?
                 """,
-                [error is None, attempted, _errors_json((error,)) if error else None, identifier],
+                [
+                    error is None,
+                    attempted,
+                    _errors_json((error,)) if error else None,
+                    identifier,
+                ],
             )
         return self.get_finalization_intent(run_id)
 
@@ -1534,14 +1617,22 @@ class DuckDBMetadataStore:
                 [identifier],
             ).fetchone()
             if intent is None:
-                raise IllegalMetadataTransitionError("terminal run requires a finalization intent")
+                raise IllegalMetadataTransitionError(
+                    "terminal run requires a finalization intent"
+                )
             if str(intent[0]) != RunState(finalization.desired_state).value:
-                raise ImmutableMetadataError("finalization state disagrees with saved intent")
+                raise ImmutableMetadataError(
+                    "finalization state disagrees with saved intent"
+                )
             if str(intent[1]) != finalization.payload_checksum:
-                raise ImmutableMetadataError("finalization payload disagrees with saved intent")
+                raise ImmutableMetadataError(
+                    "finalization payload disagrees with saved intent"
+                )
             _verify_terminal_payload(str(intent[2]), str(intent[1]))
             if not bool(intent[3]):
-                raise IllegalMetadataTransitionError("MLflow terminalization has not been synchronized")
+                raise IllegalMetadataTransitionError(
+                    "MLflow terminalization has not been synchronized"
+                )
             self._verify_terminal_artifacts(finalization.artifacts)
             self._connection.execute(
                 "DELETE FROM run_metric WHERE run_id = ?", [identifier]
@@ -1551,14 +1642,22 @@ class DuckDBMetadataStore:
             )
             for metrics in finalization.metrics:
                 for metric in metrics.metrics:
-                    self._insert_metric(identifier, MetricScope(metrics.scope).value, metric)
+                    self._insert_metric(
+                        identifier, MetricScope(metrics.scope).value, metric
+                    )
             for ordinal, artifact in enumerate(finalization.artifacts):
                 self._connection.execute(
                     """
                     INSERT INTO run_artifact(run_id, checksum, role, scientific, ordinal)
                     VALUES (?, ?, ?, ?, ?)
                     """,
-                    [identifier, artifact.checksum, artifact.role, artifact.scientific, ordinal],
+                    [
+                        identifier,
+                        artifact.checksum,
+                        artifact.role,
+                        artifact.scientific,
+                        ordinal,
+                    ],
                 )
             self._connection.execute(
                 """
@@ -1593,11 +1692,15 @@ class DuckDBMetadataStore:
                 [identifier],
             ).fetchone()
         if row is None:
-            raise MetadataNotFoundError(f"run finalization intent for {run_id} was not found")
+            raise MetadataNotFoundError(
+                f"run finalization intent for {run_id} was not found"
+            )
         payload_json = str(row[3])
         payload = _verify_terminal_payload(payload_json, str(row[2]))
         if payload.get("desired_state") != str(row[1]):
-            raise MetadataStoreError("stored finalization intent state does not match payload")
+            raise MetadataStoreError(
+                "stored finalization intent state does not match payload"
+            )
         return FinalizationIntent(
             run_id=UUID(str(row[0])),
             desired_state=RunState(str(row[1])),
@@ -1639,7 +1742,9 @@ class DuckDBMetadataStore:
         payload_json = str(row[3])
         payload = _verify_terminal_payload(payload_json, str(row[2]))
         if payload.get("desired_state") != str(row[1]):
-            raise MetadataStoreError("stored finalization intent state does not match payload")
+            raise MetadataStoreError(
+                "stored finalization intent state does not match payload"
+            )
         return FinalizationIntent(
             run_id=UUID(str(row[0])),
             desired_state=RunState(str(row[1])),
@@ -1660,7 +1765,9 @@ class DuckDBMetadataStore:
         identifier = self._run_id_text(run_id)
         with self._lock:
             self._ensure_open()
-            row = self._connection.execute(self._run_select() + " WHERE run_id = ?", [identifier]).fetchone()
+            row = self._connection.execute(
+                self._run_select() + " WHERE run_id = ?", [identifier]
+            ).fetchone()
         if row is None:
             raise MetadataNotFoundError(f"run {run_id} was not found")
         return self._run_record(row)
@@ -1740,13 +1847,16 @@ class DuckDBMetadataStore:
         """Persist legal progress/state changes and immediately retain terminal facts."""
         if not isinstance(update, ProgressUpdate):
             raise TypeError("update must be a ProgressUpdate")
-        if not isinstance(errors, tuple) or any(not isinstance(error, ActionableError) for error in errors):
+        if not isinstance(errors, tuple) or any(
+            not isinstance(error, ActionableError) for error in errors
+        ):
             raise TypeError("errors must be a tuple of ActionableError values")
         timestamp = _require_utc_datetime("updated_at", updated_at)
         identifier = str(update.job_id)
         with self.transaction():
             row = self._connection.execute(
-                "SELECT operation, state, started_at FROM job WHERE job_id = ?", [identifier]
+                "SELECT operation, state, started_at FROM job WHERE job_id = ?",
+                [identifier],
             ).fetchone()
             if row is None:
                 raise MetadataNotFoundError(f"job {update.job_id} was not found")
@@ -1756,10 +1866,14 @@ class DuckDBMetadataStore:
                 raise IllegalMetadataTransitionError("job operation cannot change")
             if current is update.state:
                 if current is not JobState.RUNNING:
-                    raise IllegalMetadataTransitionError("terminal job progress cannot change")
+                    raise IllegalMetadataTransitionError(
+                        "terminal job progress cannot change"
+                    )
             else:
                 try:
-                    require_legal_job_transition(current, update.state, operation=operation)
+                    require_legal_job_transition(
+                        current, update.state, operation=operation
+                    )
                 except ValueError as error:
                     raise IllegalMetadataTransitionError(str(error)) from error
             started_at = row[2]
@@ -1900,7 +2014,9 @@ class DuckDBMetadataStore:
             JobEvent(
                 job_id=UUID(str(row[0])),
                 sequence=int(row[1]),
-                occurred_at=_require_utc_datetime("occurred_at", cast(datetime, row[2])),
+                occurred_at=_require_utc_datetime(
+                    "occurred_at", cast(datetime, row[2])
+                ),
                 level=str(row[3]),
                 stage=JobStage(str(row[4])),
                 message=str(row[5]),
@@ -1913,7 +2029,9 @@ class DuckDBMetadataStore:
         if self._closed:
             raise MetadataStoreError("metadata store is closed")
 
-    def _record_data_object(self, reference: ContentAddressedObjectRef, created: datetime) -> None:
+    def _record_data_object(
+        self, reference: ContentAddressedObjectRef, created: datetime
+    ) -> None:
         existing = self._connection.execute(
             """
             SELECT object_kind, relative_uri, schema_version, symbol, session_year,
@@ -1971,8 +2089,12 @@ class DuckDBMetadataStore:
             )
             for ordinal, reference in enumerate(manifest.content_identity.objects)
         )
-        if existing_refs != tuple(sorted(expected_refs, key=lambda item: (item.role, item.ordinal))):
-            raise ImmutableMetadataError("snapshot ID already indexes different object references")
+        if existing_refs != tuple(
+            sorted(expected_refs, key=lambda item: (item.role, item.ordinal))
+        ):
+            raise ImmutableMetadataError(
+                "snapshot ID already indexes different object references"
+            )
         if statuses:
             rows = self._connection.execute(
                 """
@@ -2123,30 +2245,37 @@ class DuckDBMetadataStore:
         )
 
     @staticmethod
-    def _require_mutable_running_run(identifier: str, row: Sequence[object] | None) -> None:
+    def _require_mutable_running_run(
+        identifier: str, row: Sequence[object] | None
+    ) -> None:
         if row is None:
             raise MetadataNotFoundError(f"run {identifier} was not found")
         state = RunState(str(row[0]))
         immutable = bool(row[1])
         if immutable or state is not RunState.RUNNING:
-            raise ImmutableMetadataError("terminal runs are immutable; create a new Run ID")
+            raise ImmutableMetadataError(
+                "terminal runs are immutable; create a new Run ID"
+            )
 
-    def _verify_terminal_artifacts(self, artifacts: tuple[RunArtifactLink, ...]) -> None:
+    def _verify_terminal_artifacts(
+        self, artifacts: tuple[RunArtifactLink, ...]
+    ) -> None:
         for artifact in artifacts:
             row = self._connection.execute(
-                "SELECT availability FROM artifact WHERE checksum = ?", [artifact.checksum]
+                "SELECT availability FROM artifact WHERE checksum = ?",
+                [artifact.checksum],
             ).fetchone()
             if row is None:
-                raise MetadataNotFoundError(f"artifact {artifact.checksum} was not indexed")
+                raise MetadataNotFoundError(
+                    f"artifact {artifact.checksum} was not indexed"
+                )
             if SnapshotAvailability(str(row[0])) is not SnapshotAvailability.AVAILABLE:
-                raise ImmutableMetadataError("terminal run cannot reference unavailable artifact")
+                raise ImmutableMetadataError(
+                    "terminal run cannot reference unavailable artifact"
+                )
 
     def _insert_metric(self, run_id: str, scope: str, metric: MetricValue) -> None:
-        numeric_value: float | None
-        if metric.value is None:
-            numeric_value = None
-        else:
-            numeric_value = float(metric.value)
+        numeric_value = None if metric.value is None else float(metric.value)
         self._connection.execute(
             """
             INSERT INTO run_metric(run_id, scope, metric_name, metric_value, null_reason)
@@ -2157,7 +2286,9 @@ class DuckDBMetadataStore:
                 scope,
                 MetricName(metric.name).value,
                 numeric_value,
-                MetricNullReason(metric.null_reason).value if metric.null_reason is not None else None,
+                MetricNullReason(metric.null_reason).value
+                if metric.null_reason is not None
+                else None,
             ],
         )
 

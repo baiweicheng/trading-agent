@@ -298,8 +298,7 @@ def render_artifact_download(
         _call_ui(
             ui,
             "info",
-            "Artifact verified. Open it through the application facade to "
-            "download it.",
+            "Artifact verified. Open it through the application facade to download it.",
         )
         return {"artifact": metadata, "downloaded": False}
 
@@ -329,9 +328,7 @@ def render_artifact_downloads(
     """Render independent download affordances for artifact metadata/handles."""
 
     return [
-        render_artifact_download(
-            artifact, st_module=st_module, redactor=redactor
-        )
+        render_artifact_download(artifact, st_module=st_module, redactor=redactor)
         for artifact in artifacts
     ]
 

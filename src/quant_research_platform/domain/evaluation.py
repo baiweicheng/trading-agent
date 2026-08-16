@@ -140,9 +140,7 @@ def _require_seed(value: int) -> int:
 _T = TypeVar("_T", bound=Enum)
 
 
-def _coerce_enum(
-    enum_type: type[_T], name: str, value: _T | str
-) -> _T:
+def _coerce_enum(enum_type: type[_T], name: str, value: _T | str) -> _T:
     try:
         return enum_type(value)
     except ValueError as error:
@@ -240,7 +238,9 @@ class EvaluationMetrics:
             and isinstance(max_drawdown.value, Decimal)
             and max_drawdown.value > 0
         ):
-            raise ValueError("strategy and benchmark maximum_drawdown must be non-positive")
+            raise ValueError(
+                "strategy and benchmark maximum_drawdown must be non-positive"
+            )
         object.__setattr__(self, "scope", scope)
 
     def metric(self, name: MetricName | str) -> MetricValue:
@@ -287,7 +287,9 @@ def _as_decimal(name: str, value: object) -> Decimal:
     return decimal_value
 
 
-def _equity_values(values: Iterable[Decimal | int | PortfolioState]) -> tuple[Decimal, ...]:
+def _equity_values(
+    values: Iterable[Decimal | int | PortfolioState],
+) -> tuple[Decimal, ...]:
     normalized: list[Decimal] = []
     for value in values:
         if isinstance(value, PortfolioState):
@@ -297,7 +299,9 @@ def _equity_values(values: Iterable[Decimal | int | PortfolioState]) -> tuple[De
     return tuple(normalized)
 
 
-def _return_values(values: Iterable[Decimal | int | DailyReturn]) -> tuple[Decimal, ...]:
+def _return_values(
+    values: Iterable[Decimal | int | DailyReturn],
+) -> tuple[Decimal, ...]:
     normalized: list[Decimal] = []
     for value in values:
         if isinstance(value, DailyReturn):
@@ -325,12 +329,11 @@ def _decimal_sqrt(value: Decimal) -> Decimal:
 
 
 def _dated_returns(
-    values: Mapping[date, Decimal | int] | Iterable[DailyReturn | tuple[date, Decimal | int]],
+    values: Mapping[date, Decimal | int]
+    | Iterable[DailyReturn | tuple[date, Decimal | int]],
 ) -> tuple[tuple[date, Decimal], ...]:
-    if isinstance(values, Mapping):
-        candidates = values.items()
-    else:
-        candidates = values
+    candidates: Iterable[DailyReturn | tuple[date, Decimal | int]]
+    candidates = values.items() if isinstance(values, Mapping) else values
 
     dated: list[tuple[date, Decimal]] = []
     for item in candidates:
@@ -361,13 +364,18 @@ def calculate_total_return(
     """Calculate ending equity divided by starting equity minus one."""
     values = _equity_values(equity)
     if not values:
-        return _null_metric(MetricName.TOTAL_RETURN, MetricNullReason.NO_EVALUATION_SESSIONS)
+        return _null_metric(
+            MetricName.TOTAL_RETURN, MetricNullReason.NO_EVALUATION_SESSIONS
+        )
     if not _positive_equity(values):
-        return _null_metric(MetricName.TOTAL_RETURN, MetricNullReason.NON_POSITIVE_EQUITY)
-    if len(values) == 1:
-        result = Decimal("0")
-    else:
-        result = values[-1] / values[0] - Decimal("1")
+        return _null_metric(
+            MetricName.TOTAL_RETURN, MetricNullReason.NON_POSITIVE_EQUITY
+        )
+        result = (
+            Decimal("0")
+            if len(values) == 1
+            else values[-1] / values[0] - Decimal("1")
+        )
     return MetricValue(name=MetricName.TOTAL_RETURN, value=result)
 
 
@@ -426,7 +434,9 @@ def calculate_cagr(
     if return_observations is None:
         observation_count = len(values) - 1
     else:
-        if isinstance(return_observations, bool) or not isinstance(return_observations, int):
+        if isinstance(return_observations, bool) or not isinstance(
+            return_observations, int
+        ):
             raise TypeError("return_observations must be an integer")
         if return_observations <= 0:
             return _null_metric(
@@ -437,9 +447,9 @@ def calculate_cagr(
     periods = Decimal(observation_count)
     with localcontext() as context:
         context.prec = 40
-        result = (
-            values[-1] / values[0]
-        ) ** (Decimal(SESSIONS_PER_YEAR) / periods) - Decimal("1")
+        result = (values[-1] / values[0]) ** (
+            Decimal(SESSIONS_PER_YEAR) / periods
+        ) - Decimal("1")
     return MetricValue(name=MetricName.COMPOUND_ANNUAL_GROWTH_RATE, value=result)
 
 
@@ -472,7 +482,9 @@ def calculate_sharpe_ratio(
     """Calculate the zero-risk-free-rate sample Sharpe ratio."""
     values = _return_values(returns)
     if not values:
-        return _null_metric(MetricName.SHARPE_RATIO, MetricNullReason.NO_EVALUATION_SESSIONS)
+        return _null_metric(
+            MetricName.SHARPE_RATIO, MetricNullReason.NO_EVALUATION_SESSIONS
+        )
     if len(values) < 2:
         return _null_metric(
             MetricName.SHARPE_RATIO,
@@ -535,14 +547,20 @@ def total_slippage(fills: Iterable[FillRecord]) -> Decimal:
 
 
 def _turnover_denominator(
-    portfolio_equity: Decimal | int | PortfolioState | Iterable[Decimal | int | PortfolioState] | None,
+    portfolio_equity: Decimal
+    | int
+    | PortfolioState
+    | Iterable[Decimal | int | PortfolioState]
+    | None,
     initial_equity: Decimal | int,
 ) -> Decimal:
     if portfolio_equity is None:
         return _as_decimal("initial_equity", initial_equity)
     if isinstance(portfolio_equity, PortfolioState):
         return portfolio_equity.portfolio_equity
-    if isinstance(portfolio_equity, (Decimal, int)) and not isinstance(portfolio_equity, bool):
+    if isinstance(portfolio_equity, (Decimal, int)) and not isinstance(
+        portfolio_equity, bool
+    ):
         return _as_decimal("portfolio_equity", portfolio_equity)
     values = _equity_values(portfolio_equity)  # type: ignore[arg-type]
     if not values:
@@ -552,7 +570,11 @@ def _turnover_denominator(
 
 def calculate_turnover(
     fills: Iterable[FillRecord],
-    portfolio_equity: Decimal | int | PortfolioState | Iterable[Decimal | int | PortfolioState] | None = None,
+    portfolio_equity: Decimal
+    | int
+    | PortfolioState
+    | Iterable[Decimal | int | PortfolioState]
+    | None = None,
     *,
     initial_equity: Decimal | int = INITIAL_PORTFOLIO_EQUITY,
 ) -> MetricValue:
@@ -607,7 +629,9 @@ def calculate_monthly_compounding(
         if current_year_month is not None and year_month != current_year_month:
             assert month_end is not None
             monthly.append(
-                MonthlyReturn(month=month_end, return_value=current_return - Decimal("1"))
+                MonthlyReturn(
+                    month=month_end, return_value=current_return - Decimal("1")
+                )
             )
             current_return = Decimal("1")
         current_year_month = year_month
@@ -626,10 +650,16 @@ def _difference_metric(
     benchmark: MetricValue,
 ) -> MetricValue:
     if strategy.value is None:
+        if strategy.null_reason is None:
+            raise ValueError("null strategy metrics require a null reason")
         return _null_metric(name, MetricNullReason(strategy.null_reason))
     if benchmark.value is None:
+        if benchmark.null_reason is None:
+            raise ValueError("null benchmark metrics require a null reason")
         return _null_metric(name, MetricNullReason(benchmark.null_reason))
-    if not isinstance(strategy.value, Decimal) or not isinstance(benchmark.value, Decimal):
+    if not isinstance(strategy.value, Decimal) or not isinstance(
+        benchmark.value, Decimal
+    ):
         raise TypeError("performance metric values must be Decimal values")
     return MetricValue(name=name, value=strategy.value - benchmark.value)
 
@@ -659,7 +689,7 @@ def _returns_from_equity(values: tuple[Decimal, ...]) -> tuple[Decimal, ...]:
         return ()
     return tuple(
         current / previous - Decimal("1")
-        for previous, current in zip(values, values[1:])
+        for previous, current in zip(values, values[1:], strict=True)
     )
 
 
@@ -670,7 +700,11 @@ def calculate_evaluation_metrics(
     returns: Iterable[Decimal | int | DailyReturn] | None = None,
     fills: Iterable[FillRecord] = (),
     orders: Iterable[OrderRecord] = (),
-    portfolio_equity: Decimal | int | PortfolioState | Iterable[Decimal | int | PortfolioState] | None = None,
+    portfolio_equity: Decimal
+    | int
+    | PortfolioState
+    | Iterable[Decimal | int | PortfolioState]
+    | None = None,
 ) -> EvaluationMetrics:
     """Build the deterministic metric collection consumed by evaluation artifacts."""
     metric_scope = _coerce_enum(MetricScope, "metric scope", scope)
@@ -697,7 +731,9 @@ def calculate_evaluation_metrics(
     if metric_scope is not MetricScope.STRATEGY:
         if metric_scope is MetricScope.BENCHMARK:
             return EvaluationMetrics(scope=metric_scope, metrics=performance)
-        raise ValueError("difference metrics must be built with strategy_minus_benchmark")
+        raise ValueError(
+            "difference metrics must be built with strategy_minus_benchmark"
+        )
 
     normalized_fills = _fill_values(fills)
     normalized_orders = tuple(orders)
@@ -788,8 +824,12 @@ class DependencyVersion:
     version: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "name", _clean_required_text("dependency name", self.name).lower())
-        object.__setattr__(self, "version", _clean_required_text("dependency version", self.version))
+        object.__setattr__(
+            self, "name", _clean_required_text("dependency name", self.name).lower()
+        )
+        object.__setattr__(
+            self, "version", _clean_required_text("dependency version", self.version)
+        )
 
     def to_serializable(self) -> dict[str, str]:
         return {"name": self.name, "version": self.version}
@@ -824,24 +864,33 @@ class EnvironmentFingerprint:
             raise TypeError("source_dirty must be a bool")
         if not isinstance(self.dependencies, tuple):
             raise TypeError("dependencies must be an immutable tuple")
-        if any(not isinstance(dependency, DependencyVersion) for dependency in self.dependencies):
+        if any(
+            not isinstance(dependency, DependencyVersion)
+            for dependency in self.dependencies
+        ):
             raise TypeError("dependencies must contain only DependencyVersion values")
         dependency_names = tuple(dependency.name for dependency in self.dependencies)
         if dependency_names != tuple(sorted(dependency_names)):
             raise ValueError("dependencies must be sorted by normalized name")
         if len(dependency_names) != len(set(dependency_names)):
             raise ValueError("dependencies must have unique normalized names")
-        object.__setattr__(self, "deterministic_seed", _require_seed(self.deterministic_seed))
+        object.__setattr__(
+            self, "deterministic_seed", _require_seed(self.deterministic_seed)
+        )
         object.__setattr__(
             self,
             "effective_source_checksum",
-            _require_checksum("effective_source_checksum", self.effective_source_checksum),
+            _require_checksum(
+                "effective_source_checksum", self.effective_source_checksum
+            ),
         )
 
     def to_serializable(self) -> dict[str, object]:
         return {
             "architecture": self.architecture,
-            "dependencies": [dependency.to_serializable() for dependency in self.dependencies],
+            "dependencies": [
+                dependency.to_serializable() for dependency in self.dependencies
+            ],
             "deterministic_seed": self.deterministic_seed,
             "effective_source_checksum": self.effective_source_checksum,
             "operating_system": self.operating_system,
@@ -859,8 +908,12 @@ class ScientificArtifactReference:
     checksum: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "role", _clean_required_text("artifact role", self.role))
-        object.__setattr__(self, "checksum", _require_checksum("artifact checksum", self.checksum))
+        object.__setattr__(
+            self, "role", _clean_required_text("artifact role", self.role)
+        )
+        object.__setattr__(
+            self, "checksum", _require_checksum("artifact checksum", self.checksum)
+        )
 
     def to_serializable(self) -> dict[str, str]:
         return {"checksum": self.checksum, "role": self.role}
@@ -881,8 +934,15 @@ class RunContentIdentity:
     scientific_artifacts: tuple[ScientificArtifactReference, ...]
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "schema_version", _clean_required_text("schema_version", self.schema_version))
-        if not isinstance(self.snapshot_id, str) or _SNAPSHOT_ID_PATTERN.fullmatch(self.snapshot_id) is None:
+        object.__setattr__(
+            self,
+            "schema_version",
+            _clean_required_text("schema_version", self.schema_version),
+        )
+        if (
+            not isinstance(self.snapshot_id, str)
+            or _SNAPSHOT_ID_PATTERN.fullmatch(self.snapshot_id) is None
+        ):
             raise ValueError("snapshot_id must be a scientific snapshot ID")
         object.__setattr__(
             self,
@@ -919,7 +979,9 @@ class RunContentIdentity:
         if artifact_keys != tuple(sorted(artifact_keys)):
             raise ValueError("scientific_artifacts must be sorted by role and checksum")
         if len(artifact_keys) != len(set(artifact_keys)):
-            raise ValueError("scientific_artifacts must not contain duplicate references")
+            raise ValueError(
+                "scientific_artifacts must not contain duplicate references"
+            )
 
     def to_serializable(self) -> dict[str, object]:
         return {
@@ -972,7 +1034,9 @@ class RunOperationalMetadata:
             mlflow_run_id = _clean_required_text("mlflow_run_id", mlflow_run_id)
         if not isinstance(self.progress_updates, tuple):
             raise TypeError("progress_updates must be an immutable tuple")
-        if any(not isinstance(update, ProgressUpdate) for update in self.progress_updates):
+        if any(
+            not isinstance(update, ProgressUpdate) for update in self.progress_updates
+        ):
             raise TypeError("progress_updates must contain only ProgressUpdate values")
         if not isinstance(self.errors, tuple):
             raise TypeError("errors must be an immutable tuple")
@@ -1033,7 +1097,9 @@ class RunManifest:
     @property
     def scientific_checksum(self) -> str:
         """Checksum only the deterministic content-identity projection."""
-        return content_identity_checksum({"content_identity": self.content_identity.to_serializable()})
+        return content_identity_checksum(
+            {"content_identity": self.content_identity.to_serializable()}
+        )
 
     def canonical_scientific_bytes(self) -> bytes:
         """Return canonical bytes only for reproducible run science."""
@@ -1079,7 +1145,10 @@ class ComparisonRecord:
             "run_manifest_checksum",
             _require_checksum("run_manifest_checksum", self.run_manifest_checksum),
         )
-        if not isinstance(self.snapshot_id, str) or _SNAPSHOT_ID_PATTERN.fullmatch(self.snapshot_id) is None:
+        if (
+            not isinstance(self.snapshot_id, str)
+            or _SNAPSHOT_ID_PATTERN.fullmatch(self.snapshot_id) is None
+        ):
             raise ValueError("snapshot_id must be a scientific snapshot ID")
         start = _require_date("evaluation_start", self.evaluation_start)
         end = _require_date("evaluation_end", self.evaluation_end)

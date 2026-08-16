@@ -37,9 +37,7 @@ def _git_commit(root: Path) -> None:
         check=True,
     )
     subprocess.run(["git", "-C", str(root), "add", "."], check=True)
-    subprocess.run(
-        ["git", "-C", str(root), "commit", "-qm", "fixture"], check=True
-    )
+    subprocess.run(["git", "-C", str(root), "commit", "-qm", "fixture"], check=True)
 
 
 def test_source_checksum_is_independent_of_root_and_input_order(tmp_path: Path) -> None:
